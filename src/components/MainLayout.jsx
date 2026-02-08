@@ -38,7 +38,6 @@ const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Clientes', icon: <PeopleIcon />, path: '/customers' },
   { text: 'Remitos', icon: <WorkOrderIcon />, path: '/work-orders' },
   { text: 'Productos', icon: <InventoryIcon />, path: '/products' },

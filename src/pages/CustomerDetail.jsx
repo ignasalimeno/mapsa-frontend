@@ -162,7 +162,6 @@ function CustomerDetail() {
     <PageLayout
       title="Detalle del Cliente"
       subtitle="Información completa y gestión de vehículos y órdenes"
-      onBack={() => navigate('/customers')}
     >
         {/* Balance de Cuenta Corriente */}
         <Card sx={{ mb: 3, background: Number(customer.balance || 0) > 0 ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' }}>

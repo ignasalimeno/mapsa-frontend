@@ -40,7 +40,7 @@ function App() {
           <PrivateRoute>
             <MainLayout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<Navigate to="/customers" replace />} />
           <Route path="/customers" element={<CustomerList />} />
           <Route path="/customers/new" element={<CustomerForm />} />
           <Route path="/customers/:id" element={<CustomerDetail />} />

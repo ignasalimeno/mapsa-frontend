@@ -145,7 +145,6 @@ function ItemAnalysis() {
     <PageLayout
       title="Análisis de Items"
       subtitle="Historial de uso de items en órdenes de trabajo"
-      onBack={() => navigate(-1)}
     >
       <Card sx={{ mb: 3 }}>
         <CardContent>

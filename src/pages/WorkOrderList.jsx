@@ -117,7 +117,6 @@ function WorkOrderList() {
     <PageLayout
       title="Remitos"
       subtitle="Listado y gestión de remitos"
-      onBack={() => navigate(-1)}
     >
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h6">Remitos</Typography>
