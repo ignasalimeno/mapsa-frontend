@@ -17,16 +17,20 @@ import {
   Paper,
   IconButton,
   TextField,
-  InputAdornment
+  InputAdornment,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material'
 import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
 import { customerService } from '../services/api'
+import { formatCurrency } from '../utils/formatters'
 
 function CustomerList() {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [showDebtors, setShowDebtors] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -48,9 +52,15 @@ function CustomerList() {
 
   const filteredCustomers = customers.filter(customer => {
     const search = searchTerm.toLowerCase()
-    return (
+    const vehicles = (customer.vehicles || '').toLowerCase()
+    const matchesSearch = (
       customer.name?.toLowerCase().includes(search) ||
-      customer.document_number?.toLowerCase().includes(search)
+      customer.document_number?.toLowerCase().includes(search) ||
+      vehicles.includes(search)
+    )
+    const isDebtor = !showDebtors || Number(customer.balance || 0) > 0
+    return (
+      matchesSearch && isDebtor
     )
   })
 
@@ -82,10 +92,10 @@ function CustomerList() {
       </Box>
       
       <Box px={3}>
-        <Box mb={3}>
+        <Box mb={3} display="flex" gap={2} alignItems="center" flexWrap="wrap">
           <TextField
             fullWidth
-            placeholder="Buscar por nombre o documento..."
+            placeholder="Buscar por nombre, documento o patente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -95,7 +105,16 @@ function CustomerList() {
                 </InputAdornment>
               ),
             }}
-            sx={{ backgroundColor: 'white' }}
+            sx={{ backgroundColor: 'white', flex: 1 }}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={showDebtors}
+                onChange={(e) => setShowDebtors(e.target.checked)}
+              />
+            }
+            label="Solo deudores"
           />
         </Box>
 
@@ -124,6 +143,8 @@ function CustomerList() {
                     <TableRow sx={{ backgroundColor: 'grey.50' }}>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Nombre</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Documento</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Cuenta Corriente</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Vehículos</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Teléfono</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Email</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
@@ -140,6 +161,10 @@ function CustomerList() {
                       >
                         <TableCell sx={{ py: 2.5, fontWeight: 500 }}>{customer.name}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.document_number || '-'}</TableCell>
+                        <TableCell sx={{ py: 2.5, fontWeight: 600, color: Number(customer.balance || 0) > 0 ? 'error.main' : 'success.main' }}>
+                          {formatCurrency(customer.balance || 0, false)}
+                        </TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{customer.vehicles || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.phone || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.email || '-'}</TableCell>
                         <TableCell align="center" sx={{ py: 2.5 }}>

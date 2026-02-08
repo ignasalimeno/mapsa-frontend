@@ -13,7 +13,9 @@ import {
 import { Login as LoginIcon } from '@mui/icons-material'
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL = (typeof window !== 'undefined' && window.__ENV?.VITE_API_URL)
+  || import.meta.env.VITE_API_URL
+  || 'http://localhost:8000'
 
 function Login() {
   const navigate = useNavigate()

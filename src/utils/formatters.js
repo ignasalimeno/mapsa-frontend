@@ -1,14 +1,17 @@
 /**
- * Formatea un número como moneda argentina: $1.234,56
+ * Formatea un número como moneda argentina: $1.234
  * @param {number} value - El valor numérico a formatear
- * @param {boolean} includeDecimals - Si incluir decimales (default: true)
+ * @param {boolean} includeDecimals - Si incluir decimales (default: false - SIN DECIMALES)
  * @returns {string} - El valor formateado
  */
-export const formatCurrency = (value, includeDecimals = true) => {
+export const formatCurrency = (value, includeDecimals = false) => {
   if (value === null || value === undefined || value === '') return '$0';
   
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '$0';
+  
+  // Redondear a entero
+  const rounded = Math.round(num);
   
   const options = {
     minimumFractionDigits: includeDecimals ? 2 : 0,
@@ -16,13 +19,13 @@ export const formatCurrency = (value, includeDecimals = true) => {
   };
   
   // Usar locale es-AR para formato argentino
-  return '$' + num.toLocaleString('es-AR', options);
+  return '$' + rounded.toLocaleString('es-AR', options);
 };
 
 /**
- * Formatea un número sin signo de moneda: 1.234,56
+ * Formatea un número sin signo de moneda: 1.234
  * @param {number} value - El valor numérico a formatear
- * @param {boolean} includeDecimals - Si incluir decimales (default: false para cantidades)
+ * @param {boolean} includeDecimals - Si incluir decimales (default: false)
  * @returns {string} - El valor formateado
  */
 export const formatNumber = (value, includeDecimals = false) => {
@@ -31,12 +34,15 @@ export const formatNumber = (value, includeDecimals = false) => {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '0';
   
+  // Redondear a entero
+  const rounded = Math.round(num);
+  
   const options = {
     minimumFractionDigits: includeDecimals ? 2 : 0,
     maximumFractionDigits: includeDecimals ? 2 : 0,
   };
   
-  return num.toLocaleString('es-AR', options);
+  return rounded.toLocaleString('es-AR', options);
 };
 
 /**

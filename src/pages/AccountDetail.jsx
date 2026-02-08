@@ -47,7 +47,8 @@ function AccountDetail() {
     date: new Date().toISOString().slice(0,10),
     description: '',
     cheque_number: '',
-    bank: ''
+    bank: '',
+    external_id: ''
   })
   const [allocations, setAllocations] = useState({})
   const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false)
@@ -153,18 +154,28 @@ function AccountDetail() {
           allocations: allocArray
         }
 
-        await accountService.createCustomerPayment(id, payload)
+        const response = await accountService.createCustomerPayment(id, payload)
+        
+        if (response.data?.error) {
+          alert(`Error: ${response.data.error}`)
+          return
+        }
+        
+        alert('Pago registrado exitosamente')
       } else {
         // Debit/Credit Note
         const payload = {
           amount: amount,
           description: movementForm.description,
           type: movementForm.type,
-          direction: movementForm.type === 'DEBIT_NOTE' ? 'DEBIT' : 'CREDIT'
+          direction: movementForm.type === 'DEBIT_NOTE' ? 'DEBIT' : 'CREDIT',
+          external_id: movementForm.external_id
         }
         await accountService.createMovement(id, payload)
+        alert('Movimiento registrado exitosamente')
       }
 
+      // Cerrar modal y limpiar ANTES de recargar datos
       setMovementModalOpen(false)
       setAllocations({})
       setMovementForm({
@@ -174,12 +185,17 @@ function AccountDetail() {
         date: new Date().toISOString().split('T')[0],
         description: '',
         cheque_number: '',
-        bank: ''
+        bank: '',
+        external_id: ''
       })
+      
+      // Recargar datos para reflejar los cambios
       await loadAccountData()
     } catch (e) {
-      console.error(e)
-      setError('Error al registrar el movimiento')
+      console.error('Error completo:', e)
+      const errorMsg = e.response?.data?.error || e.message || 'Error desconocido al registrar el movimiento'
+      alert(`Error al registrar el movimiento: ${errorMsg}`)
+      setError(errorMsg)
     }
   }
 
@@ -224,6 +240,7 @@ function AccountDetail() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Factura</TableCell>
+                    <TableCell>Tipo</TableCell>
                     <TableCell>Fecha</TableCell>
                     <TableCell align="right">Total</TableCell>
                     <TableCell align="right">Pagado</TableCell>
@@ -236,6 +253,14 @@ function AccountDetail() {
                   {invoices.map((inv) => (
                     <TableRow key={inv.id} hover>
                       <TableCell>{inv.number || `#${inv.id}`}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={inv.invoice_type || 'B'} 
+                          size="small" 
+                          color={inv.invoice_type === 'A' ? 'primary' : 'default'}
+                          variant="outlined"
+                        />
+                      </TableCell>
                       <TableCell>{inv.date ? formatDate(inv.date) : '-'}</TableCell>
                       <TableCell align="right">{formatCurrency(inv.total_amount || 0, false)}</TableCell>
                       <TableCell align="right">{formatCurrency(inv.paid_amount || 0, false)}</TableCell>
@@ -271,6 +296,7 @@ function AccountDetail() {
                 <TableRow>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Tipo</TableCell>
+                  <TableCell>N° AFIP / Referencia</TableCell>
                   <TableCell>Descripción</TableCell>
                   <TableCell align="right">Débito</TableCell>
                   <TableCell align="right">Crédito</TableCell>
@@ -280,7 +306,20 @@ function AccountDetail() {
                 {account.movements.map(movement => (
                   <TableRow key={movement.id}>
                     <TableCell>{new Date(movement.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{movement.type}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={movement.type === 'PAYMENT' ? 'Pago' : movement.type === 'INVOICE' ? 'Factura' : movement.type === 'DEBIT_NOTE' ? 'N/D' : 'N/C'} 
+                        size="small"
+                        color={movement.type === 'PAYMENT' || movement.type === 'CREDIT_NOTE' ? 'success' : 'default'}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {movement.external_id ? (
+                        <Chip label={movement.external_id} size="small" variant="outlined" />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell>{movement.description}</TableCell>
                     <TableCell align="right" sx={{ color: 'error.main' }}>
                       {movement.direction === 'DEBIT' ? formatCurrency(movement.amount, false) : '-'}
@@ -292,7 +331,7 @@ function AccountDetail() {
                 ))}
                 {(!account.movements || account.movements.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">Sin movimientos</TableCell>
+                    <TableCell colSpan={6} align="center">Sin movimientos</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -389,6 +428,19 @@ function AccountDetail() {
                   />
                 </Grid>
               </>
+            )}
+
+            {/* Campo Número AFIP para Notas de Crédito/Débito */}
+            {(movementForm.type === 'DEBIT_NOTE' || movementForm.type === 'CREDIT_NOTE') && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Número AFIP / ID Externo"
+                  value={movementForm.external_id}
+                  onChange={(e) => setMovementForm({ ...movementForm, external_id: e.target.value })}
+                  fullWidth
+                  placeholder="Ej: NC-0001-00000123"
+                />
+              </Grid>
             )}
 
             {/* Descripción */}

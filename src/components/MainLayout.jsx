@@ -20,11 +20,14 @@ import {
 import {
   Menu as MenuIcon,
   People as PeopleIcon,
-  DirectionsCar as CarIcon,
   Assignment as WorkOrderIcon,
   AccountBalance as AccountIcon,
   Dashboard as DashboardIcon,
   Inventory as InventoryIcon,
+  LocalOffer as TagIcon,
+  Warehouse as WarehouseIcon,
+  SwapHoriz as StockIcon,
+  TrendingUp as PriceUpdateIcon,
   ChevronLeft as CollapseIcon,
   ChevronRight as ExpandIcon
 } from '@mui/icons-material';
@@ -38,6 +41,11 @@ const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Clientes', icon: <PeopleIcon />, path: '/customers' },
   { text: 'Remitos', icon: <WorkOrderIcon />, path: '/work-orders' },
+  { text: 'Productos', icon: <InventoryIcon />, path: '/products' },
+  { text: 'Stock', icon: <StockIcon />, path: '/stock' },
+  { text: 'Tags', icon: <TagIcon />, path: '/tags' },
+  { text: 'Depósitos', icon: <WarehouseIcon />, path: '/warehouses' },
+  { text: 'Actualización Masiva', icon: <PriceUpdateIcon />, path: '/products/bulk-price-update' },
   { text: 'Análisis de Items', icon: <InventoryIcon />, path: '/items-analysis' },
 ];
 

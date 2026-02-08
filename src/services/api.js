@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL = (typeof window !== 'undefined' && window.__ENV?.VITE_API_URL)
+  || import.meta.env.VITE_API_URL
+  || 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -92,6 +94,41 @@ export const paymentService = {
 
 export const deliveryNoteService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/delivery-notes/from-work-order/${workOrderId}`, data),
+}
+
+// Tags
+export const tagService = {
+  getAll: () => api.get('/tags'),
+  getById: (id) => api.get(`/tags/${id}`),
+  create: (data) => api.post('/tags', data),
+  update: (id, data) => api.put(`/tags/${id}`, data),
+  delete: (id) => api.delete(`/tags/${id}`),
+  getItems: (id) => api.get(`/tags/${id}/items`),
+  assignToItem: (itemId, tagId) => api.post(`/items/${itemId}/tags/${tagId}`),
+  removeFromItem: (itemId, tagId) => api.delete(`/items/${itemId}/tags/${tagId}`),
+  getItemTags: (itemId) => api.get(`/items/${itemId}/tags`),
+  bulkUpdatePrices: (tagId, data) => api.post(`/tags/${tagId}/update-prices`, data),
+}
+
+// Warehouses
+export const warehouseService = {
+  getAll: (activeOnly = false) => api.get('/warehouses', { params: { active_only: activeOnly } }),
+  getById: (id) => api.get(`/warehouses/${id}`),
+  create: (data) => api.post('/warehouses', data),
+  update: (id, data) => api.put(`/warehouses/${id}`, data),
+  delete: (id) => api.delete(`/warehouses/${id}`),
+  getStock: (id) => api.get(`/warehouses/${id}/stock`),
+}
+
+// Stock
+export const stockService = {
+  getTotal: () => api.get('/stock'),
+  getByItem: (itemId) => api.get(`/stock/items/${itemId}`),
+  getByWarehouse: (warehouseId) => api.get(`/stock/warehouses/${warehouseId}`),
+  transfer: (data) => api.post('/stock/transfer', data),
+  adjust: (data) => api.post('/stock/adjust', data),
+  consume: (data) => api.post('/stock/consume', data),
+  getMovements: (params) => api.get('/stock/movements', { params }),
 }
 
 export default api

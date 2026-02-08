@@ -52,6 +52,8 @@ function CustomerDetail() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
   // Estados para modales
   const [vehicleDialog, setVehicleDialog] = useState(false);
@@ -92,6 +94,7 @@ function CustomerDetail() {
       ]);
 
       setCustomer(customerRes.data);
+      setEditForm(customerRes.data);
       setVehicles(vehiclesRes.data);
       setWorkOrders(workOrdersRes.data);
     } catch (err) {
@@ -128,6 +131,22 @@ function CustomerDetail() {
     }
   };
 
+  const handleSaveCustomer = async () => {
+    try {
+      await customerService.update(id, editForm);
+      setCustomer(editForm);
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error al actualizar cliente:", err);
+      setError("Error al guardar cambios");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditForm(customer);
+    setIsEditing(false);
+  };
+
 
 
   if (loading)
@@ -145,52 +164,194 @@ function CustomerDetail() {
       subtitle="Información completa y gestión de vehículos y órdenes"
       onBack={() => navigate('/customers')}
     >
+        {/* Balance de Cuenta Corriente */}
+        <Card sx={{ mb: 3, background: Number(customer.balance || 0) > 0 ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' }}>
+          <CardContent>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Cuenta Corriente
+                </Typography>
+                <Typography variant="h3" fontWeight={700} color={Number(customer.balance || 0) > 0 ? 'error.main' : 'success.main'}>
+                  {formatCurrency(customer.balance || 0, false)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Number(customer.balance || 0) > 0 ? 'Saldo deudor' : 'Saldo al día'}
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<AccountIcon />}
+                onClick={() => navigate(`/customers/${id}/account`)}
+                sx={{ px: 3 }}
+              >
+                Ver Detalle
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+
         {/* Información del Cliente */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>
-              Información Personal
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography>
-                  <strong>Nombre:</strong> {customer.name}
-                </Typography>
-                <Typography>
-                  <strong>Documento:</strong>{" "}
-                  {customer.document_number || "No especificado"}
-                </Typography>
-                <Typography>
-                  <strong>Teléfono:</strong>{" "}
-                  {customer.phone || "No especificado"}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography>
-                  <strong>Email:</strong> {customer.email || "No especificado"}
-                </Typography>
-                <Typography>
-                  <strong>Dirección:</strong>{" "}
-                  {customer.address || "No especificada"}
-                </Typography>
-              </Grid>
-              {customer.notes && (
-                <Grid item xs={12}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">
+                Información Personal
+              </Typography>
+              <Box>
+                {!isEditing ? (
+                  <Button
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={() => setIsEditing(true)}
+                  >
+                    Editar
+                  </Button>
+                ) : (
+                  <Box display="flex" gap={1}>
+                    <Button
+                      variant="outlined"
+                      onClick={handleCancelEdit}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<SaveIcon />}
+                      onClick={handleSaveCustomer}
+                    >
+                      Guardar
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+            {!isEditing ? (
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
                   <Typography>
-                    <strong>Notas:</strong> {customer.notes}
+                    <strong>Nombre:</strong> {customer.name}
+                  </Typography>
+                  <Typography>
+                    <strong>Documento:</strong>{" "}
+                    {customer.document_number || "No especificado"}
+                  </Typography>
+                  <Typography>
+                    <strong>CUIT:</strong>{" "}
+                    {customer.cuit || "No especificado"}
+                  </Typography>
+                  <Typography>
+                    <strong>Teléfono:</strong>{" "}
+                    {customer.phone || "No especificado"}
                   </Typography>
                 </Grid>
-              )}
-            </Grid>
-            <Box mt={2}>
-              <Button
-                variant="outlined"
-                startIcon={<AccountIcon />}
-                onClick={() => navigate(`/customers/${id}/account`)}
-              >
-                Ver Cuenta Corriente
-              </Button>
-            </Box>
+                <Grid item xs={12} md={6}>
+                  <Typography>
+                    <strong>Email:</strong> {customer.email || "No especificado"}
+                  </Typography>
+                  <Typography>
+                    <strong>Dirección:</strong>{" "}
+                    {customer.address || "No especificada"}
+                  </Typography>
+                  <Typography>
+                    <strong>Contacto:</strong>{" "}
+                    {customer.contact || "No especificado"}
+                  </Typography>
+                </Grid>
+                {customer.notes && (
+                  <Grid item xs={12}>
+                    <Typography>
+                      <strong>Notas:</strong> {customer.notes}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            ) : (
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Nombre"
+                    value={editForm.name || ''}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Documento"
+                    value={editForm.document_number || ''}
+                    onChange={(e) => setEditForm({...editForm, document_number: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="CUIT"
+                    value={editForm.cuit || ''}
+                    onChange={(e) => setEditForm({...editForm, cuit: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Teléfono"
+                    value={editForm.phone || ''}
+                    onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    type="email"
+                    value={editForm.email || ''}
+                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Dirección"
+                    value={editForm.address || ''}
+                    onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Contacto"
+                    value={editForm.contact || ''}
+                    onChange={(e) => setEditForm({...editForm, contact: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Condición Fiscal"
+                    value={editForm.tax_condition || 'CONSUMIDOR_FINAL'}
+                    onChange={(e) => setEditForm({...editForm, tax_condition: e.target.value})}
+                  >
+                    <MenuItem value="CONSUMIDOR_FINAL">Consumidor Final</MenuItem>
+                    <MenuItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</MenuItem>
+                    <MenuItem value="MONOTRIBUTO">Monotributo</MenuItem>
+                    <MenuItem value="EXENTO">Exento</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Notas"
+                    multiline
+                    rows={3}
+                    value={editForm.notes || ''}
+                    onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                  />
+                </Grid>
+              </Grid>
+            )}
           </CardContent>
         </Card>
 

@@ -16,9 +16,11 @@ import {
   TableRow,
   Paper,
   IconButton,
-  Chip
+  Chip,
+  TextField,
+  InputAdornment
 } from '@mui/material'
-import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material'
+import { Add as AddIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
 import { workOrderService, customerService, vehicleService } from '../services/api'
 import { PageLayout } from '../components'
 import { formatDate } from '../utils/formatters'
@@ -34,16 +36,44 @@ const statusMap = {
 
 function WorkOrderList() {
   const [workOrders, setWorkOrders] = useState([])
+  const [filteredWorkOrders, setFilteredWorkOrders] = useState([])
   const [customers, setCustomers] = useState({})
   const [vehicles, setVehicles] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
   const navigate = useNavigate()
   // Single access button: view/edit in one place
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    applyFilters()
+  }, [workOrders, searchTerm])
+
+  const applyFilters = () => {
+    if (!searchTerm.trim()) {
+      setFilteredWorkOrders(workOrders)
+      return
+    }
+
+    const term = searchTerm.toLowerCase()
+    const filtered = workOrders.filter(wo => {
+      const customerName = (customers[wo.customer_id] || '').toLowerCase()
+      const vehicleInfo = (vehicles[wo.vehicle_id] || '').toLowerCase()
+      const externalId = (wo.external_id || '').toLowerCase()
+      const woId = wo.id.toString()
+      
+      return customerName.includes(term) || 
+             vehicleInfo.includes(term) || 
+             externalId.includes(term) ||
+             woId.includes(term)
+    })
+    
+    setFilteredWorkOrders(filtered)
+  }
 
   const loadData = async () => {
     try {
@@ -52,6 +82,7 @@ function WorkOrderList() {
       // Cargar órdenes de trabajo
       const workOrdersResponse = await workOrderService.getAll()
       setWorkOrders(workOrdersResponse.data)
+      setFilteredWorkOrders(workOrdersResponse.data)
       
       // Cargar clientes
       const customersResponse = await customerService.getAll()
@@ -99,16 +130,35 @@ function WorkOrderList() {
         </Button>
       </Box>
 
+      <Box mb={3}>
+        <TextField
+          fullWidth
+          placeholder="Buscar por cliente, vehículo, número externo o ID..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+
       <Card>
         <CardContent>
-          {workOrders.length === 0 ? (
-            <Typography>No hay remitos registrados</Typography>
+          {filteredWorkOrders.length === 0 ? (
+            <Typography>
+              {searchTerm ? 'No se encontraron remitos con ese criterio' : 'No hay remitos registrados'}
+            </Typography>
           ) : (
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>N° Remito</TableCell>
+                    <TableCell>Número Externo</TableCell>
                     <TableCell>Cliente</TableCell>
                     <TableCell>Vehículo</TableCell>
                     <TableCell>Descripción</TableCell>
@@ -118,9 +168,16 @@ function WorkOrderList() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {workOrders.map(workOrder => (
+                  {filteredWorkOrders.map(workOrder => (
                     <TableRow key={workOrder.id}>
                       <TableCell>#{workOrder.id}</TableCell>
+                      <TableCell>
+                        {workOrder.external_id ? (
+                          <Chip label={workOrder.external_id} size="small" variant="outlined" />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">-</Typography>
+                        )}
+                      </TableCell>
                       <TableCell>{customers[workOrder.customer_id] || 'N/A'}</TableCell>
                       <TableCell>{vehicles[workOrder.vehicle_id] || 'N/A'}</TableCell>
                       <TableCell>{workOrder.description}</TableCell>

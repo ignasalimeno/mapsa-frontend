@@ -49,12 +49,13 @@ function WorkOrderForm() {
     description: "",
     km_at_entry: "",
     status: 'OPEN',
+    external_id: "",
   });
 
   const [remitoModalOpen, setRemitoModalOpen] = useState(false);
   const [facturaModalOpen, setFacturaModalOpen] = useState(false);
   const [remitoForm, setRemitoForm] = useState({ id_external: '', notes: '' });
-  const [facturaForm, setFacturaForm] = useState({ id_afip: '' });
+  const [facturaForm, setFacturaForm] = useState({ id_afip: '', invoice_type: 'A' });
   
   const [orderItems, setOrderItems] = useState([]);
   const defaultItemNames = [
@@ -134,6 +135,7 @@ function WorkOrderForm() {
         description: workOrderData.description || '',
         km_at_entry: workOrderData.km_at_entry || '',
         status: workOrderData.status || 'OPEN',
+        external_id: workOrderData.external_id || '',
       });
       
       // Cargar items existentes
@@ -198,21 +200,24 @@ function WorkOrderForm() {
     try {
       const response = await itemService.getAll();
       setItems(response.data);
-      // Prefill defaults for new work orders
+      
+      // Auto-incluir producto "Valor del Remito" en nuevas OT
       if (!isEditing && orderItems.length === 0) {
-        const defaults = defaultItemNames
-          .map(name => response.data.find(i => i.name === name))
-          .filter(Boolean)
-          .map(i => ({
-            id: Date.now() + i.id,
-            item_id: i.id,
-            name: i.name,
-            type: i.type,
+        const valorRemitoItem = response.data.find(i => i.code === 'REMITO-BASE');
+        
+        if (valorRemitoItem) {
+          const baseItem = {
+            id: Date.now(),
+            item_id: valorRemitoItem.id,
+            name: valorRemitoItem.name,
+            type: valorRemitoItem.type,
             quantity: 1,
-            cost: i.purchase_price || 0,
-            price: i.sale_price || 0,
-          }));
-        setOrderItems(defaults);
+            cost: 0,
+            price: 0,
+            iva_percentage: valorRemitoItem.iva_rate || 21.00,
+          };
+          setOrderItems([baseItem]);
+        }
       }
     } catch (err) {
       console.error('Error loading items:', err);
@@ -288,15 +293,15 @@ function WorkOrderForm() {
   };
 
   const calculateTotals = () => {
-    const totalCost = orderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
-    const totalPrice = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const totalIva = orderItems.reduce((sum, item) => {
+    const totalCost = Math.round(orderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0));
+    const totalPrice = Math.round(orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0));
+    const totalIva = Math.round(orderItems.reduce((sum, item) => {
       const subtotal = item.price * item.quantity;
       const iva = subtotal * ((item.iva_percentage ?? 21) / 100);
       return sum + iva;
-    }, 0);
-    const totalInvoice = totalPrice + totalIva;
-    const profit = totalPrice - totalCost;
+    }, 0));
+    const totalInvoice = Math.round(totalPrice + totalIva);
+    const profit = Math.round(totalPrice - totalCost);
     
     return { totalCost, totalPrice, totalIva, totalInvoice, profit };
   };
@@ -316,6 +321,7 @@ function WorkOrderForm() {
         await workOrderService.update(workOrderId, {
           description: workOrder.description,
           km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
+          external_id: workOrder.external_id,
         });
 
         // 2. Reemplazar items (incluye recalculo de total en backend)
@@ -339,6 +345,7 @@ function WorkOrderForm() {
             id_vehicle: parseInt(workOrder.id_vehicle),
             description: workOrder.description,
             km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
+            external_id: workOrder.external_id,
           },
           items: orderItems.map(item => ({
             item_id: item.item_id,
@@ -462,6 +469,13 @@ function WorkOrderForm() {
             <Grid item xs={12}>
               <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
                 <TextField
+                  label="Numero:"
+                  value={workOrder.external_id}
+                  onChange={(e) => setWorkOrder({...workOrder, external_id: e.target.value})}
+                  sx={{ width: 180 }}
+                  placeholder="ID externo"
+                />
+                <TextField
                   label="KM al ingreso"
                   type="number"
                   value={workOrder.km_at_entry}
@@ -542,6 +556,19 @@ function WorkOrderForm() {
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
+                  select
+                  label="Tipo de Factura"
+                  value={facturaForm.invoice_type}
+                  onChange={(e) => setFacturaForm({ ...facturaForm, invoice_type: e.target.value })}
+                  fullWidth
+                  required
+                >
+                  <MenuItem value="A">Factura A</MenuItem>
+                  <MenuItem value="B">Factura B</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
                   label="ID AFIP"
                   value={facturaForm.id_afip}
                   onChange={(e) => setFacturaForm({ ...facturaForm, id_afip: e.target.value })}
@@ -558,9 +585,9 @@ function WorkOrderForm() {
                       const data = resp.data
                       if (data.error) throw new Error(data.error)
                       await loadWorkOrderData()
-                      alert(`Factura ${data.number} creada (AFIP: ${data.id_afip || facturaForm.id_afip || 'N/A'})`)
+                      alert(`Factura ${data.number} (Tipo ${facturaForm.invoice_type}) creada (AFIP: ${data.id_afip || facturaForm.id_afip || 'N/A'})`)
                       setFacturaModalOpen(false)
-                      setFacturaForm({ id_afip: '' })
+                      setFacturaForm({ id_afip: '', invoice_type: 'A' })
                     } catch (e) {
                       console.error(e)
                       alert('Error al generar factura')

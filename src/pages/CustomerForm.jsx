@@ -5,7 +5,11 @@ import {
   Button,
   TextField,
   Alert,
-  Grid
+  Grid,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material'
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
 import { customerService } from '../services/api'
@@ -19,7 +23,10 @@ function CustomerForm() {
     phone: '',
     email: '',
     address: '',
-    notes: ''
+    notes: '',
+    cuit: '',
+    tax_condition: 'CONSUMIDOR_FINAL',
+    contact: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -124,6 +131,44 @@ function CustomerForm() {
               value={customer.document_number}
               onChange={handleChange}
               variant="outlined"
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="CUIT"
+              name="cuit"
+              value={customer.cuit}
+              onChange={handleChange}
+              variant="outlined"
+              placeholder="20-12345678-9"
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth variant="outlined">
+              <InputLabel id="tax-condition-label">Condición frente al IVA</InputLabel>
+              <Select
+                labelId="tax-condition-label"
+                name="tax_condition"
+                value={customer.tax_condition}
+                onChange={handleChange}
+                label="Condición frente al IVA"
+              >
+                <MenuItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</MenuItem>
+                <MenuItem value="CONSUMIDOR_FINAL">Consumidor Final</MenuItem>
+                <MenuItem value="EXENTO">Exento</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Contacto"
+              name="contact"
+              value={customer.contact}
+              onChange={handleChange}
+              variant="outlined"
+              placeholder="Nombre de la persona de contacto"
             />
           </Grid>
           <Grid item xs={12} md={6}>
