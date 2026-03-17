@@ -67,7 +67,6 @@ function BulkPriceUpdate() {
 
   useEffect(() => {
     applyFilters()
-  }, [products, searchTerm, filterType, filterTag])
   }, [products, searchTerm, filterType, filterTags])
 
   const loadData = async () => {
@@ -230,7 +229,7 @@ function BulkPriceUpdate() {
 
       {/* Filtros */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
+        <Grid container spacing={2} alignItems="flex-start">
           <Grid item xs={12} md={4}>
             <TextField
               fullWidth
@@ -265,17 +264,17 @@ function BulkPriceUpdate() {
 
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth>
-              <InputLabel>Tag</InputLabel>
+              <InputLabel>Tags</InputLabel>
               <Select
-              multiple
+                multiple
                 value={filterTags}
                 onChange={(e) => setFilterTags(e.target.value)}
-                label="Tag"
-                              renderValue={() => (
-                                filterTags.length > 0 
-                                  ? `${filterTags.length} tag${filterTags.length !== 1 ? 's' : ''} seleccionado${filterTags.length !== 1 ? 's' : ''}` 
-                                  : 'Seleccionar tags'
-                              )}
+                label="Tags"
+                renderValue={() => (
+                  filterTags.length > 0
+                    ? `${filterTags.length} tag${filterTags.length !== 1 ? 's' : ''} seleccionado${filterTags.length !== 1 ? 's' : ''}`
+                    : 'Seleccionar tags'
+                )}
               >
                 {tags.map((tag) => (
                   <MenuItem key={tag.id} value={tag.id}>
@@ -298,35 +297,31 @@ function BulkPriceUpdate() {
           </Grid>
         </Grid>
 
+        {filterTags.length > 0 && (
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Tags seleccionados:
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {filterTags.map((tagId) => {
+                const tag = tags.find((currentTag) => currentTag.id === tagId)
+                return (
+                  <Chip
+                    key={tagId}
+                    label={tag?.name}
+                    onDelete={() => setFilterTags(filterTags.filter((id) => id !== tagId))}
+                    color="primary"
+                    variant="outlined"
+                  />
+                )
+              })}
+            </Box>
+          </Box>
+        )}
+
         {selectedCount > 0 && (
           <Box mt={2}>
             <Chip
-                      {/* Tags seleccionados con opción de eliminar */}
-                      {filterTags.length > 0 && (
-                        <Box sx={{ mt: 2, mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            Tags seleccionados:
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {filterTags.map((tagId) => {
-                              const tag = tags.find(t => t.id === tagId)
-                              return (
-                                <Chip
-                                  key={tagId}
-                                  label={tag?.name}
-                                  onDelete={() => setFilterTags(filterTags.filter(id => id !== tagId))}
-                                  color="primary"
-                                  variant="outlined"
-                                />
-                              )
-                            })}
-                          </Box>
-                        </Box>
-                      )}
-
-                      {selectedCount > 0 && (
-                        <Box mt={2}>
-                          <Chip
               label={`${selectedCount} producto${selectedCount !== 1 ? 's' : ''} seleccionado${selectedCount !== 1 ? 's' : ''}`}
               color="primary"
               onDelete={() => setSelectedProducts(new Set())}
