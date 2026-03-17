@@ -38,6 +38,7 @@ export const itemService = {
   delete: (id) => api.delete(`/items/${id}`),
   getUsage: (id, startDate, endDate) => api.get(`/items/${id}/usage`, { params: { start_date: startDate, end_date: endDate } }),
   createWithdrawal: (id, data) => api.post(`/items/${id}/withdrawals`, data),
+  bulkUpdatePrices: (data) => api.post('/items/bulk/update-prices', data),
 }
 
 // Work Orders

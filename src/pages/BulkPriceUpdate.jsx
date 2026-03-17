@@ -53,7 +53,7 @@ function BulkPriceUpdate() {
   // Filtros
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
-  const [filterTag, setFilterTag] = useState('all')
+  const [filterTags, setFilterTags] = useState([])
 
   // Dialog de actualización
   const [openDialog, setOpenDialog] = useState(false)
@@ -68,6 +68,7 @@ function BulkPriceUpdate() {
   useEffect(() => {
     applyFilters()
   }, [products, searchTerm, filterType, filterTag])
+  }, [products, searchTerm, filterType, filterTags])
 
   const loadData = async () => {
     try {
@@ -104,9 +105,10 @@ function BulkPriceUpdate() {
     }
 
     // Filtro por tag
-    if (filterTag !== 'all') {
+    // Filtro por tags (múltiples)
+    if (filterTags.length > 0) {
       filtered = filtered.filter(p =>
-        p.tags && p.tags.some(t => t.id === parseInt(filterTag))
+        p.tags && p.tags.some(t => filterTags.includes(t.id))
       )
     }
 
@@ -135,7 +137,7 @@ function BulkPriceUpdate() {
   const handleClearFilters = () => {
     setSearchTerm('')
     setFilterType('all')
-    setFilterTag('all')
+    setFilterTags([])
     setSelectedProducts(new Set())
   }
 
@@ -163,31 +165,15 @@ function BulkPriceUpdate() {
     try {
       setLoading(true)
       const percentage = parseFloat(updatePercentage)
-      const multiplier = updateType === 'increase' 
-        ? (1 + percentage / 100) 
-        : (1 - percentage / 100)
+      const itemIds = Array.from(selectedProducts)
 
-      const selectedProductsList = products.filter(p => selectedProducts.has(p.id))
-
-      for (const product of selectedProductsList) {
-        const updates = {
-          name: product.name,
-          type: product.type,
-          iva_rate: product.iva_rate,
-          purchase_price: product.purchase_price,
-          sale_price: product.sale_price
-        }
-
-        if (priceType === 'sale' || priceType === 'both') {
-          updates.sale_price = product.sale_price * multiplier
-        }
-
-        if (priceType === 'purchase' || priceType === 'both') {
-          updates.purchase_price = product.purchase_price * multiplier
-        }
-
-        await itemService.update(product.id, updates)
-      }
+      // Hacer un único llamado al backend para actualizar todos los precios
+      await itemService.bulkUpdatePrices({
+        item_ids: itemIds,
+        percentage: percentage,
+        price_type: priceType,
+        update_type: updateType
+      })
 
       alert(`Precios actualizados exitosamente para ${selectedProducts.size} productos`)
       handleCloseDialog()
@@ -281,11 +267,16 @@ function BulkPriceUpdate() {
             <FormControl fullWidth>
               <InputLabel>Tag</InputLabel>
               <Select
-                value={filterTag}
-                onChange={(e) => setFilterTag(e.target.value)}
+              multiple
+                value={filterTags}
+                onChange={(e) => setFilterTags(e.target.value)}
                 label="Tag"
+                              renderValue={() => (
+                                filterTags.length > 0 
+                                  ? `${filterTags.length} tag${filterTags.length !== 1 ? 's' : ''} seleccionado${filterTags.length !== 1 ? 's' : ''}` 
+                                  : 'Seleccionar tags'
+                              )}
               >
-                <MenuItem value="all">Todos</MenuItem>
                 {tags.map((tag) => (
                   <MenuItem key={tag.id} value={tag.id}>
                     {tag.name}
@@ -310,6 +301,32 @@ function BulkPriceUpdate() {
         {selectedCount > 0 && (
           <Box mt={2}>
             <Chip
+                      {/* Tags seleccionados con opción de eliminar */}
+                      {filterTags.length > 0 && (
+                        <Box sx={{ mt: 2, mb: 2 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            Tags seleccionados:
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {filterTags.map((tagId) => {
+                              const tag = tags.find(t => t.id === tagId)
+                              return (
+                                <Chip
+                                  key={tagId}
+                                  label={tag?.name}
+                                  onDelete={() => setFilterTags(filterTags.filter(id => id !== tagId))}
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              )
+                            })}
+                          </Box>
+                        </Box>
+                      )}
+
+                      {selectedCount > 0 && (
+                        <Box mt={2}>
+                          <Chip
               label={`${selectedCount} producto${selectedCount !== 1 ? 's' : ''} seleccionado${selectedCount !== 1 ? 's' : ''}`}
               color="primary"
               onDelete={() => setSelectedProducts(new Set())}
