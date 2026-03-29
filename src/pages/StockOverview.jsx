@@ -105,6 +105,9 @@ function StockOverview() {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight="bold">Stock</Typography>
         <Stack direction="row" spacing={2}>
+          <Button variant="outlined" onClick={() => navigate('/stock/valuation')}>
+            Stock Valorizado
+          </Button>
           <Button variant="outlined" startIcon={<HistoryIcon />} onClick={() => navigate('/stock/movements')}>
             Movimientos
           </Button>

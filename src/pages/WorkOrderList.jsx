@@ -20,10 +20,11 @@ import {
   TextField,
   InputAdornment
 } from '@mui/material'
-import { Add as AddIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
+import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
 import { workOrderService, customerService, vehicleService } from '../services/api'
 import { PageLayout } from '../components'
 import { formatDate } from '../utils/formatters'
+import { useChannel } from '../context'
 
 // Map backend status codes to Spanish labels and MUI chip colors
 const statusMap = {
@@ -43,11 +44,12 @@ function WorkOrderList() {
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const navigate = useNavigate()
+  const { channel } = useChannel()
   // Single access button: view/edit in one place
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [channel])
 
   useEffect(() => {
     applyFilters()
@@ -62,7 +64,7 @@ function WorkOrderList() {
     const term = searchTerm.toLowerCase()
     const filtered = workOrders.filter(wo => {
       const customerName = (customers[wo.customer_id] || '').toLowerCase()
-      const vehicleInfo = (vehicles[wo.vehicle_id] || '').toLowerCase()
+      const vehicleInfo = (vehicles[wo.vehicle_id] || 'sin vehículo').toLowerCase()
       const externalId = (wo.external_id || '').toLowerCase()
       const woId = wo.id.toString()
       
@@ -108,6 +110,19 @@ function WorkOrderList() {
     }
   }
 
+  const handleDelete = async (workOrder) => {
+    const confirmed = window.confirm(`¿Eliminar el remito ${workOrder.external_id || `#${workOrder.id}`}? Esta acción no se puede deshacer.`)
+    if (!confirmed) return
+
+    try {
+      await workOrderService.delete(workOrder.id)
+      await loadData()
+    } catch (err) {
+      setError('Error al eliminar remito')
+      console.error(err)
+    }
+  }
+
   // Invoice creation is handled from the edit/detail page.
 
   if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
@@ -132,7 +147,7 @@ function WorkOrderList() {
       <Box mb={3}>
         <TextField
           fullWidth
-          placeholder="Buscar por cliente, vehículo, número externo o ID..."
+          placeholder="Buscar por cliente, vehículo, N° de Remito o ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -157,7 +172,7 @@ function WorkOrderList() {
                 <TableHead>
                   <TableRow>
                     <TableCell>N° Remito</TableCell>
-                    <TableCell>Número Externo</TableCell>
+                    <TableCell>N° de Remito</TableCell>
                     <TableCell>Cliente</TableCell>
                     <TableCell>Vehículo</TableCell>
                     <TableCell>Descripción</TableCell>
@@ -178,7 +193,7 @@ function WorkOrderList() {
                         )}
                       </TableCell>
                       <TableCell>{customers[workOrder.customer_id] || 'N/A'}</TableCell>
-                      <TableCell>{vehicles[workOrder.vehicle_id] || 'N/A'}</TableCell>
+                      <TableCell>{vehicles[workOrder.vehicle_id] || 'Sin vehículo'}</TableCell>
                       <TableCell>{workOrder.description}</TableCell>
                       <TableCell>
                         <Chip
@@ -189,12 +204,22 @@ function WorkOrderList() {
                       </TableCell>
                       <TableCell>{formatDate(workOrder.open_date)}</TableCell>
                       <TableCell align="center">
-                        <Button
-                          variant="outlined"
-                          onClick={() => navigate(`/work-orders/${workOrder.id}/edit`)}
-                        >
-                          Ver / Editar
-                        </Button>
+                        <Box display="flex" gap={1} justifyContent="center">
+                          <Button
+                            variant="outlined"
+                            onClick={() => navigate(`/work-orders/${workOrder.id}/edit`)}
+                          >
+                            Ver / Editar
+                          </Button>
+                          <Button
+                            color="error"
+                            variant="outlined"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleDelete(workOrder)}
+                          >
+                            Borrar
+                          </Button>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))}

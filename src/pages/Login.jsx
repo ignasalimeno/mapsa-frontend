@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   TextField,
+  MenuItem,
   Button,
   Typography,
   Alert,
@@ -21,6 +22,7 @@ function Login() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [channel, setChannel] = useState(sessionStorage.getItem('channel') || 'MAPSA')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -39,6 +41,7 @@ function Login() {
         // Guardar usuario en sessionStorage (solo dura hasta cerrar pestaña)
         sessionStorage.setItem('user', JSON.stringify(response.data.user))
         sessionStorage.setItem('isAuthenticated', 'true')
+        sessionStorage.setItem('channel', channel)
         
         // Redirigir al dashboard
         navigate('/')
@@ -97,6 +100,18 @@ function Login() {
                 margin="normal"
                 required
               />
+              <TextField
+                fullWidth
+                select
+                label="Canal"
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                margin="normal"
+                required
+              >
+                <MenuItem value="MAPSA">MAPSA</MenuItem>
+                <MenuItem value="VIGIA">VIGIA</MenuItem>
+              </TextField>
               <Button
                 fullWidth
                 type="submit"

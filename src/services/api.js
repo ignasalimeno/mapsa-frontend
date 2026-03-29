@@ -11,9 +11,17 @@ const api = axios.create({
   },
 })
 
+api.interceptors.request.use((config) => {
+  const channel = sessionStorage.getItem('channel') || 'MAPSA'
+  config.headers['X-Channel'] = channel
+  return config
+})
+
 // Customers
 export const customerService = {
   getAll: () => api.get('/customers'),
+  getNextNumber: () => api.get('/customers/next-number'),
+  exportDebtors: () => api.get('/customers/debtors/export', { responseType: 'blob' }),
   getById: (id) => api.get(`/customers/${id}`),
   create: (data) => api.post('/customers', data),
   update: (id, data) => api.put(`/customers/${id}`, data),
@@ -49,6 +57,7 @@ export const workOrderService = {
   create: (data) => api.post('/work-orders', data),
   createComplete: (data) => api.post('/work-orders/complete', data),
   update: (id, data) => api.put(`/work-orders/${id}`, data),
+  delete: (id) => api.delete(`/work-orders/${id}`),
   addItem: (id, data) => api.post(`/work-orders/${id}/items`, data),
   updateItem: (workOrderId, itemId, data) => api.put(`/work-orders/${workOrderId}/items/${itemId}`, data),
   deleteItem: (workOrderId, itemId) => api.delete(`/work-orders/${workOrderId}/items/${itemId}`),
@@ -79,6 +88,9 @@ export const accountService = {
 // Billing
 export const invoiceService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/invoices/from-work-order/${workOrderId}`, data),
+  list: (params) => api.get('/invoices', { params }),
+  exportCsv: (params) => api.get('/invoices/export', { params, responseType: 'blob' }),
+  delete: (invoiceId) => api.delete(`/invoices/${invoiceId}`),
   uploadAttachment: (invoiceId, file) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -95,6 +107,15 @@ export const paymentService = {
 
 export const deliveryNoteService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/delivery-notes/from-work-order/${workOrderId}`, data),
+}
+
+export const salesService = {
+  list: (params) => api.get('/sales', { params }),
+  exportCsv: (params) => api.get('/sales/export', { params, responseType: 'blob' }),
+}
+
+export const utilityService = {
+  list: (params) => api.get('/utilities', { params }),
 }
 
 // Tags
@@ -124,6 +145,7 @@ export const warehouseService = {
 // Stock
 export const stockService = {
   getTotal: () => api.get('/stock'),
+  getValuation: (params) => api.get('/stock/valuation', { params }),
   getByItem: (itemId) => api.get(`/stock/items/${itemId}`),
   getByWarehouse: (warehouseId) => api.get(`/stock/warehouses/${warehouseId}`),
   transfer: (data) => api.post('/stock/transfer', data),

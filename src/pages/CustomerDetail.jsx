@@ -43,11 +43,39 @@ import {
 import { PageLayout, StyledCard, StyledTable, StyledDialog } from '../components';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 
+const PROVINCES = [
+  'Buenos Aires',
+  'CABA',
+  'Catamarca',
+  'Chaco',
+  'Chubut',
+  'Cordoba',
+  'Corrientes',
+  'Entre Rios',
+  'Formosa',
+  'Jujuy',
+  'La Pampa',
+  'La Rioja',
+  'Mendoza',
+  'Misiones',
+  'Neuquen',
+  'Rio Negro',
+  'Salta',
+  'San Juan',
+  'San Luis',
+  'Santa Cruz',
+  'Santa Fe',
+  'Santiago del Estero',
+  'Tierra del Fuego',
+  'Tucuman',
+]
+
 function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState(null);
   const [vehicles, setVehicles] = useState([]);
+  const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
   const [workOrders, setWorkOrders] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +175,11 @@ function CustomerDetail() {
     setIsEditing(false);
   };
 
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    if (!vehicleSearchTerm.trim()) return true;
+    return (vehicle.plate || '').toLowerCase().includes(vehicleSearchTerm.toLowerCase());
+  });
+
 
 
   if (loading)
@@ -229,6 +262,9 @@ function CustomerDetail() {
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <Typography>
+                    <strong>N° Cliente:</strong> {customer.customer_number || 'No especificado'}
+                  </Typography>
+                  <Typography>
                     <strong>Nombre:</strong> {customer.name}
                   </Typography>
                   <Typography>
@@ -253,6 +289,14 @@ function CustomerDetail() {
                     {customer.address || "No especificada"}
                   </Typography>
                   <Typography>
+                    <strong>Provincia:</strong>{" "}
+                    {customer.province || "No especificada"}
+                  </Typography>
+                  <Typography>
+                    <strong>CP:</strong>{" "}
+                    {customer.postal_code || "No especificado"}
+                  </Typography>
+                  <Typography>
                     <strong>Contacto:</strong>{" "}
                     {customer.contact || "No especificado"}
                   </Typography>
@@ -267,6 +311,16 @@ function CustomerDetail() {
               </Grid>
             ) : (
               <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="N° Cliente"
+                    type="number"
+                    value={editForm.customer_number || ''}
+                    onChange={(e) => setEditForm({...editForm, customer_number: e.target.value})}
+                    required
+                  />
+                </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
@@ -315,6 +369,28 @@ function CustomerDetail() {
                     label="Dirección"
                     value={editForm.address || ''}
                     onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Provincia"
+                    value={editForm.province || ''}
+                    onChange={(e) => setEditForm({...editForm, province: e.target.value})}
+                  >
+                    <MenuItem value="">Seleccionar provincia</MenuItem>
+                    {PROVINCES.map((province) => (
+                      <MenuItem key={province} value={province}>{province}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="CP"
+                    value={editForm.postal_code || ''}
+                    onChange={(e) => setEditForm({...editForm, postal_code: e.target.value})}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -414,8 +490,21 @@ function CustomerDetail() {
               </Button>
             </Box>
 
+            <Box mb={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Buscar por patente"
+                placeholder="Ej: AB123CD"
+                value={vehicleSearchTerm}
+                onChange={(e) => setVehicleSearchTerm(e.target.value)}
+              />
+            </Box>
+
             {vehicles.length === 0 ? (
               <Typography>No hay vehículos registrados</Typography>
+            ) : filteredVehicles.length === 0 ? (
+              <Typography>Sin resultados</Typography>
             ) : (
               <TableContainer component={Paper}>
                 <Table>
@@ -430,7 +519,7 @@ function CustomerDetail() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {vehicles.map((vehicle) => (
+                    {filteredVehicles.map((vehicle) => (
                       <TableRow key={vehicle.id}>
                         <TableCell>{vehicle.brand}</TableCell>
                         <TableCell>{vehicle.model}</TableCell>

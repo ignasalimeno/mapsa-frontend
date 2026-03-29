@@ -27,20 +27,26 @@ import WarehouseForm from './pages/WarehouseForm'
 import WarehouseStock from './pages/WarehouseStock'
 import StockOverview from './pages/StockOverview'
 import StockMovements from './pages/StockMovements'
+import StockValuation from './pages/StockValuation'
 import BulkPriceUpdate from './pages/BulkPriceUpdate'
+import InvoiceList from './pages/InvoiceList'
+import SalesList from './pages/SalesList'
+import UtilityList from './pages/UtilityList'
 import TestConnection from './pages/TestConnection'
 import theme from './theme'
+import { ChannelProvider } from './context'
 
 function App() {
   return (
     <ThemeProvider theme={theme}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/*" element={
-          <PrivateRoute>
-            <MainLayout>
-              <Routes>
-                <Route path="/" element={<Navigate to="/customers" replace />} />
+      <ChannelProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={
+            <PrivateRoute>
+              <MainLayout>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/customers" replace />} />
           <Route path="/customers" element={<CustomerList />} />
           <Route path="/customers/new" element={<CustomerForm />} />
           <Route path="/customers/:id" element={<CustomerDetail />} />
@@ -68,12 +74,17 @@ function App() {
           <Route path="/warehouses/:id/stock" element={<WarehouseStock />} />
           <Route path="/stock" element={<StockOverview />} />
           <Route path="/stock/movements" element={<StockMovements />} />
+          <Route path="/stock/valuation" element={<StockValuation />} />
+          <Route path="/invoices" element={<InvoiceList />} />
+          <Route path="/sales" element={<SalesList />} />
+          <Route path="/utilities" element={<UtilityList />} />
                 <Route path="/test" element={<TestConnection />} />
-              </Routes>
-            </MainLayout>
-          </PrivateRoute>
-        } />
-      </Routes>
+                </Routes>
+              </MainLayout>
+            </PrivateRoute>
+          } />
+        </Routes>
+      </ChannelProvider>
     </ThemeProvider>
   )
 }

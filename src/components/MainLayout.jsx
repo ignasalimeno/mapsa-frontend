@@ -13,6 +13,8 @@ import {
   ListItemText,
   Toolbar,
   Typography,
+  TextField,
+  MenuItem,
   useTheme,
   useMediaQuery,
   Divider
@@ -21,6 +23,9 @@ import {
   Menu as MenuIcon,
   People as PeopleIcon,
   Assignment as WorkOrderIcon,
+  ReceiptLong as InvoiceIcon,
+  PointOfSale as SalesIcon,
+  Assessment as UtilityIcon,
   AccountBalance as AccountIcon,
   Dashboard as DashboardIcon,
   Inventory as InventoryIcon,
@@ -33,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Tooltip from '@mui/material/Tooltip';
+import { useChannel } from '../context';
 
 const expandedDrawerWidth = 240;
 const collapsedDrawerWidth = 72;
@@ -40,6 +46,9 @@ const collapsedDrawerWidth = 72;
 const menuItems = [
   { text: 'Clientes', icon: <PeopleIcon />, path: '/customers' },
   { text: 'Remitos', icon: <WorkOrderIcon />, path: '/work-orders' },
+  { text: 'Facturas', icon: <InvoiceIcon />, path: '/invoices' },
+  { text: 'Ventas', icon: <SalesIcon />, path: '/sales' },
+  { text: 'Utilidades', icon: <UtilityIcon />, path: '/utilities' },
   { text: 'Productos', icon: <InventoryIcon />, path: '/products' },
   { text: 'Stock', icon: <StockIcon />, path: '/stock' },
   { text: 'Tags', icon: <TagIcon />, path: '/tags' },
@@ -55,6 +64,7 @@ export default function MainLayout({ children }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
+  const { channel, setChannel, channels } = useChannel();
   const currentDrawerWidth = collapsed ? collapsedDrawerWidth : expandedDrawerWidth;
 
   const handleDrawerToggle = () => {
@@ -163,6 +173,19 @@ export default function MainLayout({ children }) {
           <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
             Sistema de Gestión
           </Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          <TextField
+            select
+            size="small"
+            label="Canal"
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+            sx={{ minWidth: 140, backgroundColor: 'white' }}
+          >
+            {channels.map((item) => (
+              <MenuItem key={item} value={item}>{item}</MenuItem>
+            ))}
+          </TextField>
         </Toolbar>
       </AppBar>
       

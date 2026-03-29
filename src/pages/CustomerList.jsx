@@ -141,8 +141,11 @@ function CustomerList() {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>N° Cliente</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Nombre</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Documento</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Provincia</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>CP</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Cuenta Corriente</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Vehículos</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Teléfono</TableCell>
@@ -159,8 +162,11 @@ function CustomerList() {
                           borderBottom: index === filteredCustomers.length - 1 ? 'none' : '1px solid #e2e8f0'
                         }}
                       >
+                        <TableCell sx={{ py: 2.5, fontWeight: 600 }}>{customer.customer_number || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5, fontWeight: 500 }}>{customer.name}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.document_number || '-'}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{customer.province || '-'}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{customer.postal_code || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5, fontWeight: 600, color: Number(customer.balance || 0) > 0 ? 'error.main' : 'success.main' }}>
                           {formatCurrency(customer.balance || 0, false)}
                         </TableCell>

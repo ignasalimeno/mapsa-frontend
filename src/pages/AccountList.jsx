@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Alert,
   Typography,
+  Button,
   Table,
   TableBody,
   TableCell,
@@ -17,9 +18,10 @@ import {
   IconButton,
   Chip
 } from '@mui/material'
-import { Visibility as ViewIcon } from '@mui/icons-material'
+import { Download as DownloadIcon, Visibility as ViewIcon } from '@mui/icons-material'
 import { customerService, accountService } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
+import { useChannel } from '../context'
 
 function AccountList() {
   const [customers, setCustomers] = useState([])
@@ -27,10 +29,11 @@ function AccountList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const { channel } = useChannel()
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [channel])
 
   const loadData = async () => {
     try {
@@ -67,12 +70,35 @@ function AccountList() {
     return 'default'
   }
 
+  const handleExport = async () => {
+    try {
+      const response = await customerService.exportDebtors()
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'clientes_deudores.xlsx')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('Error al exportar clientes deudores')
+      console.error(err)
+    }
+  }
+
   if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
   if (error) return <Alert severity="error">{error}</Alert>
 
   return (
     <Box>
-      <Typography variant="h4" mb={3}>Cuentas Corrientes</Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4">Cuentas Corrientes</Typography>
+        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExport}>
+          Exportar Deudores
+        </Button>
+      </Box>
       
       <Card>
         <CardContent>

@@ -15,6 +15,9 @@ import {
   TableRow,
   Paper,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
   IconButton,
   Divider,
@@ -26,7 +29,7 @@ import {
   Save as SaveIcon,
 } from "@mui/icons-material";
 import { PageLayout } from '../components';
-import { customerService, vehicleService, itemService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
+import { customerService, vehicleService, itemService, tagService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 
 function WorkOrderForm() {
@@ -38,14 +41,20 @@ function WorkOrderForm() {
   const isEditing = !!workOrderId;
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
+  const [tags, setTags] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const [itemFilterType, setItemFilterType] = useState('ALL');
+  const [itemFilterTags, setItemFilterTags] = useState([]);
   
   const [workOrder, setWorkOrder] = useState({
     id_customer: preselectedCustomerId || "",
     id_vehicle: preselectedVehicleId || "",
+    id_warehouse: "",
     description: "",
     km_at_entry: "",
     status: 'OPEN',
@@ -118,6 +127,7 @@ function WorkOrderForm() {
 
   useEffect(() => {
     loadCustomers();
+    loadWarehouses();
     loadItems();
     if (isEditing) {
       loadWorkOrderData();
@@ -132,6 +142,7 @@ function WorkOrderForm() {
       setWorkOrder({
         id_customer: workOrderData.customer_id,
         id_vehicle: workOrderData.vehicle_id,
+        id_warehouse: workOrderData.warehouse_id || '',
         description: workOrderData.description || '',
         km_at_entry: workOrderData.km_at_entry || '',
         status: workOrderData.status || 'OPEN',
@@ -196,14 +207,40 @@ function WorkOrderForm() {
     }
   };
 
+  const loadWarehouses = async () => {
+    try {
+      const response = await warehouseService.getAll(true);
+      const allWarehouses = response.data || [];
+      setWarehouses(allWarehouses);
+
+      const centralWarehouse = allWarehouses.find((w) =>
+        (w.name || '').toLowerCase().includes('central')
+      );
+      const fallbackWarehouse = allWarehouses[0];
+      const defaultWarehouse = centralWarehouse || fallbackWarehouse;
+      if (defaultWarehouse) {
+        setWorkOrder((prev) => ({
+          ...prev,
+          id_warehouse: prev.id_warehouse || defaultWarehouse.id,
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading warehouses:', err);
+    }
+  };
+
   const loadItems = async () => {
     try {
-      const response = await itemService.getAll();
-      setItems(response.data);
+      const [itemsResponse, tagsResponse] = await Promise.all([
+        itemService.getAll(),
+        tagService.getAll(),
+      ]);
+      setItems(itemsResponse.data);
+      setTags(tagsResponse.data || []);
       
       // Auto-incluir producto "Valor del Remito" en nuevas OT
       if (!isEditing && orderItems.length === 0) {
-        const valorRemitoItem = response.data.find(i => i.code === 'REMITO-BASE');
+        const valorRemitoItem = itemsResponse.data.find(i => i.code === 'REMITO-BASE');
         
         if (valorRemitoItem) {
           const baseItem = {
@@ -308,9 +345,26 @@ function WorkOrderForm() {
 
   const { totalCost, totalPrice, totalIva, totalInvoice, profit } = calculateTotals();
 
+  const filteredItemsForPicker = items.filter((item) => {
+    const normalizedSearch = itemSearchTerm.trim().toLowerCase();
+    const normalizedItemType = (item.type || '').toUpperCase();
+    const selectedTagIds = itemFilterTags.map((id) => Number(id));
+
+    const matchesSearch = !normalizedSearch
+      || (item.name || '').toLowerCase().includes(normalizedSearch)
+      || (item.code || '').toLowerCase().includes(normalizedSearch);
+
+    const matchesType = itemFilterType === 'ALL' || normalizedItemType === itemFilterType;
+
+    const matchesTags = selectedTagIds.length === 0
+      || (item.tags || []).some((tag) => selectedTagIds.includes(Number(tag.id)));
+
+    return matchesSearch && matchesType && matchesTags;
+  });
+
   const handleSave = async () => {
-    if (!workOrder.id_customer || !workOrder.id_vehicle || orderItems.length === 0) {
-      alert('Por favor completa cliente, vehículo y al menos un item');
+    if (!workOrder.id_customer || !workOrder.id_warehouse || orderItems.length === 0) {
+      alert('Por favor completa cliente, depósito y al menos un item');
       return;
     }
     
@@ -321,6 +375,7 @@ function WorkOrderForm() {
         await workOrderService.update(workOrderId, {
           description: workOrder.description,
           km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
+          id_warehouse: parseInt(workOrder.id_warehouse),
           external_id: workOrder.external_id,
         });
 
@@ -342,7 +397,8 @@ function WorkOrderForm() {
         const payload = {
           workOrder: {
             id_customer: parseInt(workOrder.id_customer),
-            id_vehicle: parseInt(workOrder.id_vehicle),
+            id_vehicle: workOrder.id_vehicle ? parseInt(workOrder.id_vehicle) : null,
+            id_warehouse: parseInt(workOrder.id_warehouse),
             description: workOrder.description,
             km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
             external_id: workOrder.external_id,
@@ -445,10 +501,9 @@ function WorkOrderForm() {
                 value={workOrder.id_vehicle}
                 onChange={(e) => setWorkOrder({...workOrder, id_vehicle: e.target.value})}
                 disabled={!workOrder.id_customer || isEditing}
-                required
                 sx={{ width: 280 }}
               >
-                <MenuItem value="">Seleccionar vehículo...</MenuItem>
+                <MenuItem value="">Sin vehículo</MenuItem>
                 {vehicles.map((vehicle) => (
                   <MenuItem key={vehicle.id} value={vehicle.id}>
                     {vehicle.brand} {vehicle.model} - {vehicle.plate}
@@ -469,11 +524,25 @@ function WorkOrderForm() {
             <Grid item xs={12}>
               <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
                 <TextField
-                  label="Numero:"
+                  select
+                  label="Depósito"
+                  value={workOrder.id_warehouse}
+                  onChange={(e) => setWorkOrder({ ...workOrder, id_warehouse: e.target.value })}
+                  required
+                  sx={{ width: 240 }}
+                >
+                  {warehouses.map((warehouse) => (
+                    <MenuItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="N° de Remito"
                   value={workOrder.external_id}
                   onChange={(e) => setWorkOrder({...workOrder, external_id: e.target.value})}
                   sx={{ width: 180 }}
-                  placeholder="ID externo"
+                  placeholder="Ej: 000123"
                 />
                 <TextField
                   label="KM al ingreso"
@@ -505,7 +574,7 @@ function WorkOrderForm() {
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
-                  label="ID Externo"
+                  label="N° de Remito"
                   value={remitoForm.id_external}
                   onChange={(e) => setRemitoForm({ ...remitoForm, id_external: e.target.value })}
                   fullWidth
@@ -530,7 +599,7 @@ function WorkOrderForm() {
                       const resp = await deliveryNoteService.createFromWorkOrder(workOrderId, remitoForm)
                       const data = resp.data
                       if (data.error) throw new Error(data.error)
-                      alert(`Remito ${data.number} creado (ID externo: ${data.id_external || remitoForm.id_external || 'N/A'})`)
+                      alert(`Remito ${data.number} creado (N° de Remito: ${data.id_external || remitoForm.id_external || 'N/A'})`)
                       setRemitoModalOpen(false)
                       setRemitoForm({ id_external: '', notes: '' })
                     } catch (e) {
@@ -605,6 +674,70 @@ function WorkOrderForm() {
       <Card>
         <CardContent>
           <Typography variant="h6" mb={2}>Items del Remito</Typography>
+
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Buscar item"
+                placeholder="Nombre o código..."
+                value={itemSearchTerm}
+                onChange={(e) => setItemSearchTerm(e.target.value)}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Tipo</InputLabel>
+                <Select
+                  value={itemFilterType}
+                  label="Tipo"
+                  onChange={(e) => setItemFilterType(e.target.value)}
+                >
+                  <MenuItem value="ALL">Todos</MenuItem>
+                  <MenuItem value="PRODUCT">Producto</MenuItem>
+                  <MenuItem value="SERVICE">Servicio</MenuItem>
+                  <MenuItem value="EXTRA_CHARGE">Gasto Extra</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Tags</InputLabel>
+                <Select
+                  multiple
+                  value={itemFilterTags}
+                  label="Tags"
+                  onChange={(e) => setItemFilterTags(e.target.value)}
+                  renderValue={() => (
+                    itemFilterTags.length > 0
+                      ? `${itemFilterTags.length} tag(s)`
+                      : 'Seleccionar tags'
+                  )}
+                >
+                  {tags.map((tag) => (
+                    <MenuItem key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={1}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  setItemSearchTerm('');
+                  setItemFilterType('ALL');
+                  setItemFilterTags([]);
+                }}
+              >
+                Limpiar
+              </Button>
+            </Grid>
+          </Grid>
 
           {/* Tabla de items */}
           <TableContainer component={Paper}>
@@ -734,7 +867,7 @@ function WorkOrderForm() {
                       sx={{ width: 250 }}
                     >
                       <MenuItem value="">Seleccionar...</MenuItem>
-                      {items.map((item) => (
+                      {filteredItemsForPicker.map((item) => (
                         <MenuItem key={item.id} value={item.id}>
                           {item.name} ({item.type})
                         </MenuItem>

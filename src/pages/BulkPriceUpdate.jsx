@@ -88,6 +88,7 @@ function BulkPriceUpdate() {
 
   const applyFilters = () => {
     let filtered = [...products]
+    const selectedTagIds = filterTags.map((id) => Number(id))
 
     // Filtro de búsqueda
     if (searchTerm) {
@@ -107,7 +108,7 @@ function BulkPriceUpdate() {
     // Filtro por tags (múltiples)
     if (filterTags.length > 0) {
       filtered = filtered.filter(p =>
-        p.tags && p.tags.some(t => filterTags.includes(t.id))
+        p.tags && p.tags.some(t => selectedTagIds.includes(Number(t.id)))
       )
     }
 
@@ -256,8 +257,9 @@ function BulkPriceUpdate() {
                 label="Tipo"
               >
                 <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="product">Producto</MenuItem>
-                <MenuItem value="service">Servicio</MenuItem>
+                <MenuItem value="PRODUCT">Producto</MenuItem>
+                <MenuItem value="SERVICE">Servicio</MenuItem>
+                <MenuItem value="EXTRA_CHARGE">Gasto Extra</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -378,11 +380,30 @@ function BulkPriceUpdate() {
                   <TableCell>{product.code || '-'}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>
+                    {(() => {
+                      const type = (product.type || '').toUpperCase()
+                      const typeLabel = type === 'PRODUCT'
+                        ? 'Producto'
+                        : type === 'SERVICE'
+                          ? 'Servicio'
+                          : type === 'EXTRA_CHARGE'
+                            ? 'Gasto Extra'
+                            : product.type
+
+                      const typeColor = type === 'PRODUCT'
+                        ? 'primary'
+                        : type === 'SERVICE'
+                          ? 'secondary'
+                          : 'warning'
+
+                      return (
                     <Chip
-                      label={product.type}
+                      label={typeLabel}
                       size="small"
-                      color={product.type === 'product' ? 'primary' : 'secondary'}
+                      color={typeColor}
                     />
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5}>

@@ -27,7 +27,8 @@ import {
 } from '@mui/material'
 import {
   Edit as EditIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material'
 import { workOrderService, invoiceService, paymentService, accountService } from '../services/api'
 import { PageLayout } from '../components'
@@ -88,6 +89,19 @@ function WorkOrderDetail() {
 
   const handleGenerateInvoice = async () => {
     setInvoiceModalOpen(true)
+  }
+
+  const handleDeleteWorkOrder = async () => {
+    const confirmed = window.confirm(`¿Eliminar el remito ${workOrder.external_id || `#${workOrder.id}`}? Esta acción no se puede deshacer.`)
+    if (!confirmed) return
+
+    try {
+      await workOrderService.delete(id)
+      navigate('/work-orders')
+    } catch (err) {
+      console.error(err)
+      alert('Error al eliminar remito')
+    }
   }
 
   const handleConfirmInvoice = async () => {
@@ -195,13 +209,23 @@ function WorkOrderDetail() {
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6">Información General</Typography>
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              onClick={() => navigate(`/work-orders/${id}/edit`)}
-            >
-              Editar Remito
-            </Button>
+            <Box display="flex" gap={1}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleDeleteWorkOrder}
+              >
+                Borrar
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<EditIcon />}
+                onClick={() => navigate(`/work-orders/${id}/edit`)}
+              >
+                Editar Remito
+              </Button>
+            </Box>
           </Box>
           
           <Grid container spacing={3}>

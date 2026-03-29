@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -16,13 +16,43 @@ import { customerService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import FormCard from '../components/FormCard'
 
+const PROVINCES = [
+  'Buenos Aires',
+  'CABA',
+  'Catamarca',
+  'Chaco',
+  'Chubut',
+  'Cordoba',
+  'Corrientes',
+  'Entre Rios',
+  'Formosa',
+  'Jujuy',
+  'La Pampa',
+  'La Rioja',
+  'Mendoza',
+  'Misiones',
+  'Neuquen',
+  'Rio Negro',
+  'Salta',
+  'San Juan',
+  'San Luis',
+  'Santa Cruz',
+  'Santa Fe',
+  'Santiago del Estero',
+  'Tierra del Fuego',
+  'Tucuman',
+]
+
 function CustomerForm() {
   const [customer, setCustomer] = useState({
+    customer_number: '',
     name: '',
     document_number: '',
     phone: '',
     email: '',
     address: '',
+    province: '',
+    postal_code: '',
     notes: '',
     cuit: '',
     tax_condition: 'CONSUMIDOR_FINAL',
@@ -31,6 +61,22 @@ function CustomerForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const loadNextNumber = async () => {
+      try {
+        const response = await customerService.getNextNumber()
+        setCustomer(prev => ({
+          ...prev,
+          customer_number: response.data?.next_customer_number || ''
+        }))
+      } catch (err) {
+        console.error('Error loading next customer number:', err)
+      }
+    }
+
+    loadNextNumber()
+  }, [])
 
   const handleChange = (e) => {
     setCustomer({
@@ -111,6 +157,18 @@ function CustomerForm() {
         )}
         
         <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Número de cliente"
+              name="customer_number"
+              type="number"
+              value={customer.customer_number}
+              onChange={handleChange}
+              required
+              variant="outlined"
+            />
+          </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
@@ -203,6 +261,34 @@ function CustomerForm() {
               onChange={handleChange}
               variant="outlined"
               placeholder="Calle, número, ciudad"
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth variant="outlined">
+              <InputLabel id="province-label">Provincia</InputLabel>
+              <Select
+                labelId="province-label"
+                name="province"
+                value={customer.province}
+                onChange={handleChange}
+                label="Provincia"
+              >
+                <MenuItem value="">Seleccionar provincia</MenuItem>
+                {PROVINCES.map((province) => (
+                  <MenuItem key={province} value={province}>{province}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="CP"
+              name="postal_code"
+              value={customer.postal_code}
+              onChange={handleChange}
+              variant="outlined"
+              placeholder="Ej: B1644 o 5000"
             />
           </Grid>
           <Grid item xs={12}>
