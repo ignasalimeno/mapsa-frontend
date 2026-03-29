@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { vehicleService, workOrderService } from '../services/api'
 import { PageLayout } from '../components'
-import { formatCurrency, formatNumber } from '../utils/formatters'
+import { formatCurrency, formatNumber, formatDate } from '../utils/formatters'
 
 function VehicleDetail() {
   const { id } = useParams()
