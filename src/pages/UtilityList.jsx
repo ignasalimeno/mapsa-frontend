@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  CircularProgress,
   Grid,
   MenuItem,
   Paper,
@@ -15,10 +14,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material'
-import { PageLayout } from '../components'
+import { LoadingOverlay, PageLayout } from '../components'
 import { utilityService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel } from '../context'
@@ -27,6 +27,8 @@ function UtilityList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [data, setData] = useState({ totals: {}, items: [] })
+  const [order, setOrder] = useState('desc')
+  const [orderBy, setOrderBy] = useState('open_date')
   const { channel } = useChannel()
   const [filters, setFilters] = useState({
     date_from: '',
@@ -60,8 +62,65 @@ function UtilityList() {
     setFilters((prev) => ({ ...prev, [field]: value }))
   }
 
+  const getSortableValue = (item, field) => {
+    switch (field) {
+      case 'number':
+        return item.number || ''
+      case 'plate':
+        return item.plate || ''
+      case 'open_date':
+        return item.open_date || ''
+      case 'customer_name':
+        return item.customer_name || ''
+      case 'sale_total':
+        return Number(item.sale_total || 0)
+      case 'cost_total':
+        return Number(item.cost_total || 0)
+      case 'utility_total':
+        return Number(item.utility_total || 0)
+      case 'margin_percentage':
+        return Number(item.margin_percentage || 0)
+      default:
+        return item[field] ?? ''
+    }
+  }
+
+  const handleRequestSort = (field) => {
+    const isAsc = orderBy === field && order === 'asc'
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(field)
+  }
+
+  const sortedItems = [...data.items].sort((left, right) => {
+    const leftValue = getSortableValue(left, orderBy)
+    const rightValue = getSortableValue(right, orderBy)
+
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      return order === 'asc' ? leftValue - rightValue : rightValue - leftValue
+    }
+
+    const comparison = String(leftValue).localeCompare(String(rightValue), 'es', {
+      numeric: true,
+      sensitivity: 'base',
+    })
+
+    return order === 'asc' ? comparison : -comparison
+  })
+
+  const sortableColumns = [
+    { id: 'number', label: 'Remito' },
+    { id: 'plate', label: 'Patente' },
+    { id: 'open_date', label: 'Fecha' },
+    { id: 'customer_name', label: 'Cliente' },
+    { id: 'sale_total', label: 'Venta', align: 'right' },
+    { id: 'cost_total', label: 'Costo', align: 'right' },
+    { id: 'utility_total', label: 'Utilidad', align: 'right' },
+    { id: 'margin_percentage', label: 'Margen', align: 'right' },
+  ]
+
   return (
     <PageLayout title="Utilidades" subtitle="Costo, venta y utilidad por remito">
+      <LoadingOverlay open={loading} message="Cargando utilidades..." />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card sx={{ mb: 3 }}>
@@ -153,34 +212,48 @@ function UtilityList() {
             </Typography>
           </Box>
 
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
-          ) : data.items.length === 0 ? (
+          {data.items.length === 0 ? (
             <Typography>No hay remitos en el rango seleccionado.</Typography>
           ) : (
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Remito</TableCell>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell>Cliente</TableCell>
-                    <TableCell align="right">Venta</TableCell>
-                    <TableCell align="right">Costo</TableCell>
-                    <TableCell align="right">Utilidad</TableCell>
-                    <TableCell align="right">Margen</TableCell>
+                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                    {sortableColumns.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        align={column.align || 'left'}
+                        sortDirection={orderBy === column.id ? order : false}
+                        sx={{ fontWeight: 600, py: 2 }}
+                      >
+                        <TableSortLabel
+                          active={orderBy === column.id}
+                          direction={orderBy === column.id ? order : 'asc'}
+                          onClick={() => handleRequestSort(column.id)}
+                        >
+                          {column.label}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.number}</TableCell>
-                      <TableCell>{formatDate(item.open_date)}</TableCell>
-                      <TableCell>{item.customer_name}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.sale_total, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.cost_total, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.utility_total, false)}</TableCell>
-                      <TableCell align="right">{Number(item.margin_percentage || 0).toFixed(2)}%</TableCell>
+                  {sortedItems.map((item, index) => (
+                    <TableRow
+                      key={item.id}
+                      sx={{
+                        '&:hover': { backgroundColor: 'grey.50' },
+                        borderBottom: index === sortedItems.length - 1 ? 'none' : '1px solid #e2e8f0',
+                      }}
+                    >
+                      <TableCell sx={{ py: 2.5 }}>{item.number || '-'}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{item.plate || '-'}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{formatDate(item.open_date)}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{item.customer_name}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.sale_total, false)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.cost_total, false)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.utility_total, false)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{Number(item.margin_percentage || 0).toFixed(2)}%</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

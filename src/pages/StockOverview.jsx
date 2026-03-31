@@ -22,7 +22,7 @@ import {
 } from '@mui/material'
 import { SwapHoriz as TransferIcon, Tune as AdjustIcon, History as HistoryIcon } from '@mui/icons-material'
 import { itemService, stockService, warehouseService } from '../services/api'
-import LoadingOverlay from '../components/LoadingOverlay'
+import { LoadingOverlay, PageLayout } from '../components'
 import StockBadge from '../components/StockBadge'
 
 function StockOverview() {
@@ -99,11 +99,10 @@ function StockOverview() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <LoadingOverlay open={loading} message="Cargando stock..." />
-
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">Stock</Typography>
+    <PageLayout
+      title="Stock"
+      subtitle="Control de stock, ajustes y transferencias"
+      actions={(
         <Stack direction="row" spacing={2}>
           <Button variant="outlined" onClick={() => navigate('/stock/valuation')}>
             Stock Valorizado
@@ -118,7 +117,9 @@ function StockOverview() {
             Transferir
           </Button>
         </Stack>
-      </Box>
+      )}
+    >
+      <LoadingOverlay open={loading} message="Cargando stock..." />
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -254,7 +255,7 @@ function StockOverview() {
           <Button variant="contained" onClick={handleTransfer}>Transferir</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageLayout>
   )
 }
 

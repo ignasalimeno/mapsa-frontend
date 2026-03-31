@@ -5,7 +5,9 @@ import {
   Button,
   TextField,
   Alert,
-  Grid
+  Grid,
+  Typography,
+  Container
 } from '@mui/material'
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
 import { tagService } from '../services/api'
@@ -106,45 +108,79 @@ function TagForm() {
           </Button>
         ]}
       >
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+        <Container maxWidth="sm" disableGutters>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Nombre"
-              name="name"
-              value={tag.name}
-              onChange={handleChange}
-              required
-            />
+          <Grid container spacing={2.5}>
+            {/* IDENTIFICACIÓN */}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+                Identificación
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nombre"
+                name="name"
+                value={tag.name}
+                onChange={handleChange}
+                required
+                variant="outlined"
+                size="small"
+              />
+            </Grid>
+
+            {/* VISUAL */}
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+                Visual
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Color"
+                name="color"
+                type="color"
+                value={tag.color}
+                onChange={handleChange}
+                variant="outlined"
+                size="small"
+                sx={{ 
+                  '& input[type="color"]': { 
+                    height: '52px',
+                    cursor: 'pointer',
+                    borderRadius: '4px'
+                  }
+                }}
+              />
+            </Grid>
+
+            {/* COMPLEMENTARIO */}
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+                Complementario
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Descripción"
+                name="description"
+                value={tag.description}
+                onChange={handleChange}
+                multiline
+                rows={3}
+                variant="outlined"
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Color"
-              name="color"
-              value={tag.color}
-              onChange={handleChange}
-              placeholder="#2563eb"
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Descripción"
-              name="description"
-              value={tag.description}
-              onChange={handleChange}
-              multiline
-              rows={3}
-            />
-          </Grid>
-        </Grid>
+        </Container>
       </FormCard>
     </Box>
   )

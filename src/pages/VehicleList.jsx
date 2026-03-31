@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  CircularProgress,
   Alert,
   Typography,
   Table,
@@ -14,19 +13,21 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Paper,
-  IconButton,
   Chip
 } from '@mui/material'
-import { Add as AddIcon, Visibility as ViewIcon, Build as WorkOrderIcon } from '@mui/icons-material'
+import { Add as AddIcon } from '@mui/icons-material'
 import { vehicleService, customerService } from '../services/api'
-import { PageLayout } from '../components'
+import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 
 function VehicleList() {
   const [vehicles, setVehicles] = useState([])
   const [customers, setCustomers] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [order, setOrder] = useState('asc')
+  const [orderBy, setOrderBy] = useState('customer')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -55,16 +56,61 @@ function VehicleList() {
     }
   }
 
-  if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
-  if (error) return <Alert severity="error">{error}</Alert>
+  const getSortableValue = (vehicle, field) => {
+    switch (field) {
+      case 'customer':
+        return customers[vehicle.id_customer] || ''
+      case 'brand':
+        return vehicle.brand || ''
+      case 'model':
+        return vehicle.model || ''
+      case 'year':
+        return Number(vehicle.year || 0)
+      case 'license_plate':
+        return vehicle.license_plate || vehicle.plate || ''
+      case 'status':
+        return vehicle.status || 'Activo'
+      default:
+        return vehicle[field] ?? ''
+    }
+  }
+
+  const handleRequestSort = (field) => {
+    const isAsc = orderBy === field && order === 'asc'
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(field)
+  }
+
+  const sortedVehicles = [...vehicles].sort((left, right) => {
+    const leftValue = getSortableValue(left, orderBy)
+    const rightValue = getSortableValue(right, orderBy)
+
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      return order === 'asc' ? leftValue - rightValue : rightValue - leftValue
+    }
+
+    const comparison = String(leftValue).localeCompare(String(rightValue), 'es', {
+      numeric: true,
+      sensitivity: 'base',
+    })
+
+    return order === 'asc' ? comparison : -comparison
+  })
+
+  const sortableColumns = [
+    { id: 'customer', label: 'Cliente' },
+    { id: 'brand', label: 'Marca' },
+    { id: 'model', label: 'Modelo' },
+    { id: 'year', label: 'Año' },
+    { id: 'license_plate', label: 'Patente' },
+    { id: 'status', label: 'Estado' },
+  ]
 
   return (
     <PageLayout
       title="Vehículos"
       subtitle="Listado de vehículos registrados"
-    >
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h6">Lista de Vehículos</Typography>
+      actions={(
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -72,7 +118,10 @@ function VehicleList() {
         >
           Nuevo Vehículo
         </Button>
-      </Box>
+      )}
+    >
+      <LoadingOverlay open={loading} message="Cargando vehículos..." />
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       <Card>
         <CardContent>
@@ -82,46 +131,59 @@ function VehicleList() {
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Cliente</TableCell>
-                    <TableCell>Marca</TableCell>
-                    <TableCell>Modelo</TableCell>
-                    <TableCell>Año</TableCell>
-                    <TableCell>Patente</TableCell>
-                    <TableCell>Estado</TableCell>
-                    <TableCell align="center">Acciones</TableCell>
+                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                    {sortableColumns.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        sortDirection={orderBy === column.id ? order : false}
+                        sx={{ fontWeight: 600, py: 2 }}
+                      >
+                        <TableSortLabel
+                          active={orderBy === column.id}
+                          direction={orderBy === column.id ? order : 'asc'}
+                          onClick={() => handleRequestSort(column.id)}
+                        >
+                          {column.label}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
+                    <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {vehicles.map(vehicle => (
-                    <TableRow key={vehicle.id}>
-                      <TableCell>{customers[vehicle.id_customer] || 'N/A'}</TableCell>
-                      <TableCell>{vehicle.brand}</TableCell>
-                      <TableCell>{vehicle.model}</TableCell>
-                      <TableCell>{vehicle.year}</TableCell>
-                      <TableCell>{vehicle.license_plate}</TableCell>
-                      <TableCell>
+                  {sortedVehicles.map((vehicle, index) => (
+                    <TableRow
+                      key={vehicle.id}
+                      sx={{
+                        '&:hover': { backgroundColor: 'grey.50' },
+                        borderBottom: index === sortedVehicles.length - 1 ? 'none' : '1px solid #e2e8f0',
+                      }}
+                    >
+                      <TableCell sx={{ py: 2.5 }}>{customers[vehicle.id_customer] || 'N/A'}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{vehicle.brand}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{vehicle.model}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{vehicle.year}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{vehicle.license_plate || vehicle.plate || '-'}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>
                         <Chip 
                           label={vehicle.status || 'Activo'} 
                           color="success" 
                           size="small" 
                         />
                       </TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          color="primary"
+                      <TableCell align="center" sx={{ py: 2.5 }}>
+                        <Box display="flex" gap={1} justifyContent="center">
+                          <TableActionIconButton
+                            kind="access"
                           onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                          title="Ver Detalle"
-                        >
-                          <ViewIcon />
-                        </IconButton>
-                        <IconButton
-                          color="secondary"
+                            ariaLabel={`Abrir vehículo ${vehicle.brand} ${vehicle.model}`}
+                          />
+                          <TableActionIconButton
+                            kind="workorder"
                           onClick={() => navigate(`/work-orders/new?vehicle=${vehicle.id}`)}
-                          title="Nuevo Remito"
-                        >
-                          <WorkOrderIcon />
-                        </IconButton>
+                            ariaLabel={`Crear remito para vehículo ${vehicle.brand} ${vehicle.model}`}
+                          />
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))}

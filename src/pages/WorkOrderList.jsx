@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  CircularProgress,
   Alert,
   Typography,
   Table,
@@ -15,16 +14,16 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
   Chip,
+  TableSortLabel,
   TextField,
   InputAdornment
 } from '@mui/material'
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
+import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
 import { workOrderService, customerService, vehicleService } from '../services/api'
-import { PageLayout } from '../components'
-import { formatDate } from '../utils/formatters'
-import { useChannel } from '../context'
+import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
+import { formatCurrency, formatDate } from '../utils/formatters'
+import { useChannel, useConfirm, useNotify } from '../context'
 
 // Map backend status codes to Spanish labels and MUI chip colors
 const statusMap = {
@@ -40,11 +39,16 @@ function WorkOrderList() {
   const [filteredWorkOrders, setFilteredWorkOrders] = useState([])
   const [customers, setCustomers] = useState({})
   const [vehicles, setVehicles] = useState({})
+  const [vehiclePlates, setVehiclePlates] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [order, setOrder] = useState('asc')
+  const [orderBy, setOrderBy] = useState('external_id')
   const navigate = useNavigate()
   const { channel } = useChannel()
+  const confirm = useConfirm()
+  const { error: notifyError, success: notifySuccess } = useNotify()
   // Single access button: view/edit in one place
 
   useEffect(() => {
@@ -97,10 +101,13 @@ function WorkOrderList() {
       // Cargar vehículos
       const vehiclesResponse = await vehicleService.getAll()
       const vehiclesMap = {}
+      const vehiclePlatesMap = {}
       vehiclesResponse.data.forEach(vehicle => {
         vehiclesMap[vehicle.id] = `${vehicle.brand} ${vehicle.model} (${vehicle.plate || 'Sin patente'})`
+        vehiclePlatesMap[vehicle.id] = vehicle.plate || ''
       })
       setVehicles(vehiclesMap)
+      setVehiclePlates(vehiclePlatesMap)
       
     } catch (err) {
       setError('Error al cargar órdenes de trabajo')
@@ -111,30 +118,87 @@ function WorkOrderList() {
   }
 
   const handleDelete = async (workOrder) => {
-    const confirmed = window.confirm(`¿Eliminar el remito ${workOrder.external_id || `#${workOrder.id}`}? Esta acción no se puede deshacer.`)
+    const confirmed = await confirm({
+      title: 'Eliminar remito',
+      message: `Vas a eliminar el remito ${workOrder.external_id || '-'}. Esta accion no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      confirmColor: 'error',
+    })
     if (!confirmed) return
 
     try {
       await workOrderService.delete(workOrder.id)
       await loadData()
+      notifySuccess('Remito eliminado correctamente')
     } catch (err) {
       setError('Error al eliminar remito')
+      notifyError('No se pudo eliminar el remito')
       console.error(err)
     }
   }
 
+  const getWorkOrderAmount = (workOrder) => {
+    if (workOrder.status !== 'INVOICED') return null
+    return Number(workOrder.final_total || 0)
+  }
+
+  const getSortableValue = (workOrder, key) => {
+    switch (key) {
+      case 'external_id':
+        return (workOrder.external_id || '').toString().toLowerCase()
+      case 'customer_name':
+        return (customers[workOrder.customer_id] || '').toLowerCase()
+      case 'vehicle_name':
+        return (vehicles[workOrder.vehicle_id] || '').toLowerCase()
+      case 'plate':
+        return (vehiclePlates[workOrder.vehicle_id] || '').toLowerCase()
+      case 'description':
+        return (workOrder.description || '').toLowerCase()
+      case 'status':
+        return (statusMap[workOrder.status]?.label || workOrder.status || '').toLowerCase()
+      case 'open_date':
+        return new Date(workOrder.open_date || 0).getTime()
+      case 'final_total':
+        return getWorkOrderAmount(workOrder) ?? -1
+      default:
+        return (workOrder[key] || '').toString().toLowerCase()
+    }
+  }
+
+  const sortedWorkOrders = [...filteredWorkOrders].sort((a, b) => {
+    const aValue = getSortableValue(a, orderBy)
+    const bValue = getSortableValue(b, orderBy)
+
+    if (aValue < bValue) return order === 'asc' ? -1 : 1
+    if (aValue > bValue) return order === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc'
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(property)
+  }
+
+  const sortableColumns = [
+    { id: 'external_id', label: 'N° de Remito' },
+    { id: 'customer_name', label: 'Cliente' },
+    { id: 'plate', label: 'Patente' },
+    { id: 'description', label: 'Descripción' },
+    { id: 'status', label: 'Estado' },
+    { id: 'open_date', label: 'Fecha' },
+    { id: 'final_total', label: 'Monto', align: 'right' },
+  ]
+
   // Invoice creation is handled from the edit/detail page.
 
-  if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
   if (error) return <Alert severity="error">{error}</Alert>
 
   return (
     <PageLayout
       title="Remitos"
       subtitle="Listado y gestión de remitos"
-    >
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h6">Remitos</Typography>
+      actions={(
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -142,12 +206,14 @@ function WorkOrderList() {
         >
           Nuevo Remito
         </Button>
-      </Box>
+      )}
+    >
+      <LoadingOverlay open={loading} message="Cargando remitos..." />
 
       <Box mb={3}>
         <TextField
           fullWidth
-          placeholder="Buscar por cliente, vehículo, N° de Remito o ID..."
+          placeholder="Buscar por cliente, vehículo o N° de Remito..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -170,55 +236,65 @@ function WorkOrderList() {
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>N° Remito</TableCell>
-                    <TableCell>N° de Remito</TableCell>
-                    <TableCell>Cliente</TableCell>
-                    <TableCell>Vehículo</TableCell>
-                    <TableCell>Descripción</TableCell>
-                    <TableCell>Estado</TableCell>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell align="center">Acciones</TableCell>
+                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                    {sortableColumns.map((column) => (
+                      <TableCell key={column.id} align={column.align || 'left'} sx={{ fontWeight: 600, py: 2 }}>
+                        <TableSortLabel
+                          active={orderBy === column.id}
+                          direction={orderBy === column.id ? order : 'asc'}
+                          onClick={() => handleRequestSort(column.id)}
+                        >
+                          {column.label}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
+                    <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredWorkOrders.map(workOrder => (
-                    <TableRow key={workOrder.id}>
-                      <TableCell>#{workOrder.id}</TableCell>
-                      <TableCell>
+                  {sortedWorkOrders.map((workOrder, index) => (
+                    <TableRow
+                      key={workOrder.id}
+                      sx={{
+                        '&:hover': { backgroundColor: 'grey.50' },
+                        borderBottom: index === sortedWorkOrders.length - 1 ? 'none' : '1px solid #e2e8f0',
+                      }}
+                    >
+                      <TableCell sx={{ py: 2.5 }}>
                         {workOrder.external_id ? (
-                          <Chip label={workOrder.external_id} size="small" variant="outlined" />
+                          <Typography sx={{ fontWeight: 600 }}>{workOrder.external_id}</Typography>
                         ) : (
                           <Typography variant="body2" color="text.secondary">-</Typography>
                         )}
                       </TableCell>
-                      <TableCell>{customers[workOrder.customer_id] || 'N/A'}</TableCell>
-                      <TableCell>{vehicles[workOrder.vehicle_id] || 'Sin vehículo'}</TableCell>
-                      <TableCell>{workOrder.description}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{customers[workOrder.customer_id] || 'N/A'}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{vehiclePlates[workOrder.vehicle_id] || '-'}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>{workOrder.description}</TableCell>
+                      <TableCell sx={{ py: 2.5 }}>
                         <Chip
                           label={(statusMap[workOrder.status]?.label) || 'Abierta'}
                           color={(statusMap[workOrder.status]?.color) || 'default'}
                           size="small"
                         />
                       </TableCell>
-                      <TableCell>{formatDate(workOrder.open_date)}</TableCell>
-                      <TableCell align="center">
+                      <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
+                        {getWorkOrderAmount(workOrder) !== null
+                          ? formatCurrency(getWorkOrderAmount(workOrder), false)
+                          : '-'}
+                      </TableCell>
+                      <TableCell align="center" sx={{ py: 2.5 }}>
                         <Box display="flex" gap={1} justifyContent="center">
-                          <Button
-                            variant="outlined"
+                          <TableActionIconButton
+                            kind="access"
                             onClick={() => navigate(`/work-orders/${workOrder.id}/edit`)}
-                          >
-                            Ver / Editar
-                          </Button>
-                          <Button
-                            color="error"
-                            variant="outlined"
-                            startIcon={<DeleteIcon />}
+                            ariaLabel={`Abrir remito ${workOrder.external_id || workOrder.id}`}
+                          />
+                          <TableActionIconButton
+                            kind="delete"
                             onClick={() => handleDelete(workOrder)}
-                          >
-                            Borrar
-                          </Button>
+                            ariaLabel={`Eliminar remito ${workOrder.external_id || workOrder.id}`}
+                          />
                         </Box>
                       </TableCell>
                     </TableRow>

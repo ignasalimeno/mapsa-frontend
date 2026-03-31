@@ -17,15 +17,22 @@ function LoadingOverlay({ open, message = 'Cargando...' }) {
         alignItems="center"
         gap={2}
         sx={{
-          backgroundColor: 'white',
-          padding: 4,
-          borderRadius: 3,
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          minWidth: 280,
+          backgroundColor: 'background.paper',
+          px: 4,
+          py: 3.5,
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'grey.200',
+          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.22)',
         }}
       >
         <CircularProgress size={48} thickness={4} />
-        <Typography variant="h6" color="text.primary" fontWeight={500}>
+        <Typography variant="h6" color="text.primary" fontWeight={600}>
           {message}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Aguarda un momento por favor
         </Typography>
       </Box>
     </Backdrop>

@@ -1,7 +1,24 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  Paper,
+} from '@mui/material'
 import { vehicleService, workOrderService } from '../services/api'
-import { PageLayout } from '../components'
+import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 import { formatCurrency, formatNumber, formatDate } from '../utils/formatters'
 
 function VehicleDetail() {
@@ -15,6 +32,11 @@ function VehicleDetail() {
   useEffect(() => {
     loadVehicleData()
   }, [id])
+
+  const getWorkOrderAmount = (workOrder) => {
+    if (workOrder.status !== 'INVOICED') return null
+    return Number(workOrder.final_total || 0)
+  }
 
   const loadVehicleData = async () => {
     try {
@@ -34,108 +56,139 @@ function VehicleDetail() {
     }
   }
 
-  if (loading) return <div className="loading">Cargando...</div>
-  if (error) return <div className="error">{error}</div>
-  if (!vehicle) return <div className="error">Vehículo no encontrado</div>
-
   return (
     <PageLayout
       title={`Vehículo ${vehicle.brand} ${vehicle.model}`}
       subtitle={`Patente ${vehicle.plate || vehicle.license_plate || '-'}`}
       onBack={() => navigate(-1)}
+      actions={(
+        <Button variant="outlined" onClick={() => navigate(`/customers/${vehicle.customer_id}`)}>
+          Volver al Cliente
+        </Button>
+      )}
     >
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>Detalle del Vehículo</h2>
-          <Link to={`/customers/${vehicle.customer_id}`} className="btn">Volver al Cliente</Link>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div>
-            <p><strong>Marca:</strong> {vehicle.brand}</p>
-            <p><strong>Modelo:</strong> {vehicle.model}</p>
-            <p><strong>Motor:</strong> {vehicle.engine || 'No especificado'}</p>
-          </div>
-          <div>
-            <p><strong>Año:</strong> {vehicle.year || 'No especificado'}</p>
-            <p><strong>Patente:</strong> {vehicle.plate || 'No especificada'}</p>
-            <p><strong>Kilómetros:</strong> {vehicle.current_km || 0}</p>
-          </div>
-        </div>
-        
-        {vehicle.vin && (
-          <p style={{ marginTop: '1rem' }}><strong>VIN:</strong> {vehicle.vin}</p>
-        )}
-        
-        {vehicle.notes && (
-          <div style={{ marginTop: '1rem' }}>
-            <p><strong>Notas:</strong> {vehicle.notes}</p>
-          </div>
-        )}
-      </div>
+      <LoadingOverlay open={loading} message="Cargando vehículo..." />
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {!vehicle && <Alert severity="error">Vehículo no encontrado</Alert>}
 
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3>Remitos</h3>
-          <Link to="/work-orders/new" className="btn btn-success">Nuevo Remito</Link>
-        </div>
-        
-        {workOrders.length === 0 ? (
-          <p>No hay remitos para este vehículo</p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Fecha Apertura</th>
-                <th>Estado</th>
-                <th>Descripción</th>
-                <th>KM</th>
-                <th>Total</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workOrders.map(workOrder => (
-                <tr key={workOrder.id}>
-                  <td>{workOrder.id}</td>
-                  <td>{formatDate(workOrder.open_date)}</td>
-                  <td>
-                    <span style={{ 
-                      padding: '0.25rem 0.5rem', 
-                      borderRadius: '4px', 
-                      fontSize: '0.8rem',
-                      backgroundColor: getStatusColor(workOrder.status),
-                      color: 'white'
-                    }}>
-                      {workOrder.status}
-                    </span>
-                  </td>
-                  <td>{workOrder.description || '-'}</td>
-                  <td>{workOrder.km_at_entry ? formatNumber(workOrder.km_at_entry) : '-'}</td>
-                  <td>{formatCurrency(workOrder.final_total || 0, false)}</td>
-                  <td>
-                    <Link to={`/work-orders/${workOrder.id}/edit`} className="btn">Acceder</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {vehicle && (
+        <>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" mb={2}>Detalle del Vehículo</Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Typography><strong>Marca:</strong> {vehicle.brand}</Typography>
+                  <Typography><strong>Modelo:</strong> {vehicle.model}</Typography>
+                  <Typography><strong>Motor:</strong> {vehicle.engine || 'No especificado'}</Typography>
+                  <Typography><strong>VIN:</strong> {vehicle.vin || 'No especificado'}</Typography>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography><strong>Año:</strong> {vehicle.year || 'No especificado'}</Typography>
+                  <Typography><strong>Patente:</strong> {vehicle.plate || vehicle.license_plate || 'No especificada'}</Typography>
+                  <Typography><strong>Kilómetros:</strong> {formatNumber(vehicle.current_km || 0)}</Typography>
+                  <Typography><strong>Notas:</strong> {vehicle.notes || 'Sin notas'}</Typography>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">Remitos</Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate(`/work-orders/new?vehicle=${vehicle.id}`)}
+                >
+                  Nuevo Remito
+                </Button>
+              </Box>
+
+              {workOrders.length === 0 ? (
+                <Typography>No hay remitos para este vehículo</Typography>
+              ) : (
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 600, py: 2 }}>N° Remito</TableCell>
+                        <TableCell sx={{ fontWeight: 600, py: 2 }}>Patente</TableCell>
+                        <TableCell sx={{ fontWeight: 600, py: 2 }}>Fecha Apertura</TableCell>
+                        <TableCell sx={{ fontWeight: 600, py: 2 }}>Estado</TableCell>
+                        <TableCell sx={{ fontWeight: 600, py: 2 }}>Descripción</TableCell>
+                        <TableCell sx={{ fontWeight: 600, py: 2 }}>KM</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Monto</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {workOrders.map((workOrder, index) => (
+                        <TableRow
+                          key={workOrder.id}
+                          sx={{
+                            '&:hover': { backgroundColor: 'grey.50' },
+                            borderBottom: index === workOrders.length - 1 ? 'none' : '1px solid #e2e8f0',
+                          }}
+                        >
+                          <TableCell sx={{ py: 2.5 }}>{workOrder.external_id || '-'}</TableCell>
+                          <TableCell sx={{ py: 2.5 }}>{vehicle.plate || vehicle.license_plate || '-'}</TableCell>
+                          <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
+                          <TableCell sx={{ py: 2.5 }}>
+                            <Chip
+                              size="small"
+                              label={getStatusLabel(workOrder.status)}
+                              color={getStatusColor(workOrder.status)}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ py: 2.5 }}>{workOrder.description || '-'}</TableCell>
+                          <TableCell sx={{ py: 2.5 }}>{workOrder.km_at_entry ? formatNumber(workOrder.km_at_entry) : '-'}</TableCell>
+                          <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
+                            {getWorkOrderAmount(workOrder) !== null
+                              ? formatCurrency(getWorkOrderAmount(workOrder), false)
+                              : '-'}
+                          </TableCell>
+                          <TableCell align="center" sx={{ py: 2.5 }}>
+                            <TableActionIconButton
+                              kind="access"
+                              onClick={() => navigate(`/work-orders/${workOrder.id}/edit`)}
+                              ariaLabel={`Abrir remito ${workOrder.external_id || workOrder.id}`}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </PageLayout>
   )
 }
 
 function getStatusColor(status) {
   const colors = {
-    'OPEN': '#3498db',
-    'IN_PROGRESS': '#f39c12',
-    'READY': '#27ae60',
-    'INVOICED': '#8e44ad',
-    'CANCELLED': '#e74c3c'
+    OPEN: 'info',
+    IN_PROGRESS: 'warning',
+    READY: 'success',
+    INVOICED: 'primary',
+    CANCELLED: 'error',
   }
-  return colors[status] || '#95a5a6'
+  return colors[status] || 'default'
+}
+
+function getStatusLabel(status) {
+  const labels = {
+    OPEN: 'Abierto',
+    IN_PROGRESS: 'En Progreso',
+    READY: 'Listo',
+    INVOICED: 'Facturado',
+    CANCELLED: 'Cancelado',
+  }
+  return labels[status] || status
 }
 
 export default VehicleDetail

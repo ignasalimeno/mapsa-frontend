@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
@@ -20,17 +20,19 @@ import {
   Select,
   MenuItem,
   IconButton,
-  Divider,
   Chip,
+  Autocomplete,
+  Container
 } from "@mui/material";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Save as SaveIcon,
 } from "@mui/icons-material";
-import { PageLayout } from '../components';
+import { LoadingOverlay, PageLayout, StyledDialog } from '../components';
 import { customerService, vehicleService, itemService, tagService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { useNotify } from '../context';
 
 function WorkOrderForm() {
   const navigate = useNavigate();
@@ -48,8 +50,11 @@ function WorkOrderForm() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(false);
   const [itemSearchTerm, setItemSearchTerm] = useState('');
-  const [itemFilterType, setItemFilterType] = useState('ALL');
   const [itemFilterTags, setItemFilterTags] = useState([]);
+  const [recentItems, setRecentItems] = useState([]);
+  const [selectedItemForAdd, setSelectedItemForAdd] = useState(null);
+  const autocompleteRef = useRef(null);
+  const { error: notifyError, success: notifySuccess } = useNotify();
   
   const [workOrder, setWorkOrder] = useState({
     id_customer: preselectedCustomerId || "",
@@ -133,6 +138,24 @@ function WorkOrderForm() {
       loadWorkOrderData();
     }
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl/Cmd+K to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        autocompleteRef.current?.focus();
+      }
+      // Escape to clear search
+      if (e.key === 'Escape' && itemSearchTerm) {
+        setItemSearchTerm('');
+        setSelectedItemForAdd(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [itemSearchTerm]);
 
   const loadWorkOrderData = async () => {
     try {
@@ -329,6 +352,38 @@ function WorkOrderForm() {
     }
   };
 
+  // Add item from autocomplete and track recent items
+  const handleQuickAddItem = (item) => {
+    if (!item) return;
+    
+    // Add to recent items list (keep last 5)
+    const updatedRecent = [item.id, ...recentItems.filter(id => id !== item.id)].slice(0, 5);
+    setRecentItems(updatedRecent);
+    localStorage.setItem('recentWorkOrderItems', JSON.stringify(updatedRecent));
+    
+    // Add item with qty 1
+    const orderItem = {
+      id: Date.now(),
+      item_id: item.id,
+      name: item.name,
+      type: item.type,
+      quantity: 1,
+      cost: item.purchase_price,
+      price: item.sale_price,
+      iva_percentage: item.iva_rate || 21.00,
+    };
+    
+    setOrderItems([...orderItems, orderItem]);
+    
+    // Clear search and show success message
+    setItemSearchTerm('');
+    setSelectedItemForAdd(null);
+    notifySuccess(`${item.name} agregado`);
+    
+    // Auto-focus search for next item
+    setTimeout(() => autocompleteRef.current?.focus(), 300);
+  };
+
   const calculateTotals = () => {
     const totalCost = Math.round(orderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0));
     const totalPrice = Math.round(orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0));
@@ -345,26 +400,10 @@ function WorkOrderForm() {
 
   const { totalCost, totalPrice, totalIva, totalInvoice, profit } = calculateTotals();
 
-  const filteredItemsForPicker = items.filter((item) => {
-    const normalizedSearch = itemSearchTerm.trim().toLowerCase();
-    const normalizedItemType = (item.type || '').toUpperCase();
-    const selectedTagIds = itemFilterTags.map((id) => Number(id));
-
-    const matchesSearch = !normalizedSearch
-      || (item.name || '').toLowerCase().includes(normalizedSearch)
-      || (item.code || '').toLowerCase().includes(normalizedSearch);
-
-    const matchesType = itemFilterType === 'ALL' || normalizedItemType === itemFilterType;
-
-    const matchesTags = selectedTagIds.length === 0
-      || (item.tags || []).some((tag) => selectedTagIds.includes(Number(tag.id)));
-
-    return matchesSearch && matchesType && matchesTags;
-  });
-
   const handleSave = async () => {
-    if (!workOrder.id_customer || !workOrder.id_warehouse || orderItems.length === 0) {
-      alert('Por favor completa cliente, depósito y al menos un item');
+    const externalId = (workOrder.external_id || '').trim();
+    if (!workOrder.id_customer || !workOrder.id_warehouse || !externalId || orderItems.length === 0) {
+      notifyError('Por favor completa cliente, depósito, número de remito y al menos un item');
       return;
     }
     
@@ -376,7 +415,7 @@ function WorkOrderForm() {
           description: workOrder.description,
           km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
           id_warehouse: parseInt(workOrder.id_warehouse),
-          external_id: workOrder.external_id,
+          external_id: externalId,
         });
 
         // 2. Reemplazar items (incluye recalculo de total en backend)
@@ -392,7 +431,7 @@ function WorkOrderForm() {
         if (replaceResp.data.error) {
           throw new Error(replaceResp.data.error);
         }
-        alert('Remito e items actualizados exitosamente');
+        notifySuccess('Remito e items actualizados exitosamente');
       } else {
         const payload = {
           workOrder: {
@@ -401,7 +440,7 @@ function WorkOrderForm() {
             id_warehouse: parseInt(workOrder.id_warehouse),
             description: workOrder.description,
             km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
-            external_id: workOrder.external_id,
+            external_id: externalId,
           },
           items: orderItems.map(item => ({
             item_id: item.item_id,
@@ -414,12 +453,12 @@ function WorkOrderForm() {
         };
         
         await workOrderService.createComplete(payload);
-        alert('Remito creado exitosamente');
+        notifySuccess('Remito creado exitosamente');
       }
       navigate(-1);
     } catch (err) {
       console.error('Error al guardar orden:', err);
-      alert('Error al guardar el remito');
+      notifyError('Error al guardar el remito');
     } finally {
       setLoading(false);
     }
@@ -429,7 +468,7 @@ function WorkOrderForm() {
     <PageLayout
       title={
         <Box display="flex" alignItems="center" gap={2}>
-          <span>{isEditing ? `Editar Remito #${workOrderId}` : "Nuevo Remito"}</span>
+          <span>{isEditing ? `Editar Remito ${workOrder.external_id || '-'}` : "Nuevo Remito"}</span>
           {isEditing && (
             <Chip 
               label={getStatusText(workOrder.status)} 
@@ -454,82 +493,88 @@ function WorkOrderForm() {
         ) : null
       }
     >
+      <LoadingOverlay open={loading} message={isEditing ? 'Guardando remito...' : 'Procesando remito...'} />
       {/* Cabecera - Datos del Cliente y Vehículo */}
       <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" mb={2}>Información General</Typography>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3, mb: 3 }}>
+            Información General
+          </Typography>
           
-          <Grid container spacing={3}>
-            {/* Selección de Cliente */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Cliente"
-                value={workOrder.id_customer}
-                onChange={(e) => {
-                  setWorkOrder({...workOrder, id_customer: e.target.value, id_vehicle: ''});
-                  setSelectedVehicle(null);
-                }}
-                required
-                disabled={isEditing}
-                sx={{ width: 300 }}
-              >
-                <MenuItem value="">Seleccionar cliente...</MenuItem>
-                {customers.map((customer) => (
-                  <MenuItem key={customer.id} value={customer.id}>
-                    {customer.name} - {customer.document_number}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {selectedCustomer && (
-                <Box mt={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Teléfono:</strong> {selectedCustomer.phone || 'N/A'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Email:</strong> {selectedCustomer.email || 'N/A'}
-                  </Typography>
-                </Box>
-              )}
-            </Grid>
+          <Container maxWidth="md" disableGutters>
+            <Grid container spacing={2.5}>
+              {/* Selección de Cliente */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  label="Cliente"
+                  value={workOrder.id_customer}
+                  onChange={(e) => {
+                    setWorkOrder({...workOrder, id_customer: e.target.value, id_vehicle: ''});
+                    setSelectedVehicle(null);
+                  }}
+                  required
+                  disabled={isEditing}
+                  fullWidth
+                  size="small"
+                >
+                  <MenuItem value="">Seleccionar cliente...</MenuItem>
+                  {customers.map((customer) => (
+                    <MenuItem key={customer.id} value={customer.id}>
+                      {customer.name} - {customer.document_number}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                {selectedCustomer && (
+                  <Box mt={1.5}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Teléfono:</strong> {selectedCustomer.phone || 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Email:</strong> {selectedCustomer.email || 'N/A'}
+                    </Typography>
+                  </Box>
+                )}
+              </Grid>
 
-            {/* Selección de Vehículo */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Vehículo"
-                value={workOrder.id_vehicle}
-                onChange={(e) => setWorkOrder({...workOrder, id_vehicle: e.target.value})}
-                disabled={!workOrder.id_customer || isEditing}
-                sx={{ width: 280 }}
-              >
-                <MenuItem value="">Sin vehículo</MenuItem>
-                {vehicles.map((vehicle) => (
-                  <MenuItem key={vehicle.id} value={vehicle.id}>
-                    {vehicle.brand} {vehicle.model} - {vehicle.plate}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {selectedVehicle && (
-                <Box mt={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Año:</strong> {selectedVehicle.year || 'N/A'} | 
-                    <strong> KM:</strong> {formatNumber(selectedVehicle.current_km) || '0'}
-                  </Typography>
-                </Box>
-              )}
-            </Grid>
+              {/* Selección de Vehículo */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  label="Vehículo"
+                  value={workOrder.id_vehicle}
+                  onChange={(e) => setWorkOrder({...workOrder, id_vehicle: e.target.value})}
+                  disabled={!workOrder.id_customer || isEditing}
+                  fullWidth
+                  size="small"
+                >
+                  <MenuItem value="">Sin vehículo</MenuItem>
+                  {vehicles.map((vehicle) => (
+                    <MenuItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.brand} {vehicle.model} - {vehicle.plate}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                {selectedVehicle && (
+                  <Box mt={1.5}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Año:</strong> {selectedVehicle.year || 'N/A'} | 
+                      <strong> KM:</strong> {formatNumber(selectedVehicle.current_km) || '0'}
+                    </Typography>
+                  </Box>
+                )}
+              </Grid>
 
-            {/* Campos de la Orden */}
-            <Grid item xs={12}>
-              <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
+              {/* Depósito */}
+              <Grid item xs={12} md={6}>
                 <TextField
                   select
                   label="Depósito"
                   value={workOrder.id_warehouse}
                   onChange={(e) => setWorkOrder({ ...workOrder, id_warehouse: e.target.value })}
                   required
-                  sx={{ width: 240 }}
+                  fullWidth
+                  size="small"
                 >
                   {warehouses.map((warehouse) => (
                     <MenuItem key={warehouse.id} value={warehouse.id}>
@@ -537,40 +582,82 @@ function WorkOrderForm() {
                     </MenuItem>
                   ))}
                 </TextField>
+              </Grid>
+
+              {/* N° de Remito */}
+              <Grid item xs={12} md={6}>
                 <TextField
                   label="N° de Remito"
                   value={workOrder.external_id}
                   onChange={(e) => setWorkOrder({...workOrder, external_id: e.target.value})}
-                  sx={{ width: 180 }}
-                  placeholder="Ej: 000123"
+                  required
+                  fullWidth
+                  size="small"
+                  placeholder="000123"
                 />
+              </Grid>
+
+              {/* KM al ingreso */}
+              <Grid item xs={12} md={6}>
                 <TextField
                   label="KM al ingreso"
                   type="number"
                   value={workOrder.km_at_entry}
                   onChange={(e) => setWorkOrder({...workOrder, km_at_entry: e.target.value})}
-                  sx={{ width: 150 }}
+                  fullWidth
+                  size="small"
                 />
+              </Grid>
+
+              {/* Descripción del trabajo */}
+              <Grid item xs={12}>
                 <TextField
                   label="Descripción del trabajo"
                   value={workOrder.description}
                   onChange={(e) => setWorkOrder({...workOrder, description: e.target.value})}
-                  sx={{ flexGrow: 1, minWidth: 400 }}
+                  fullWidth
+                  multiline
+                  rows={2}
+                  placeholder="Detalles del trabajo a realizar..."
                 />
-              </Box>
+              </Grid>
             </Grid>
-          </Grid>
+          </Container>
         </CardContent>
       </Card>
 
       {/* Remito Modal */}
-      {remitoModalOpen && (
-        <Card sx={{ position: 'fixed', top: '20%', left: '50%', transform: 'translateX(-50%)', zIndex: 1300, minWidth: 420 }}>
-          <CardContent>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">Generar Remito</Typography>
-              <Button size="small" onClick={() => setRemitoModalOpen(false)}>Cerrar</Button>
-            </Box>
+      <StyledDialog
+        open={remitoModalOpen}
+        onClose={() => setRemitoModalOpen(false)}
+        maxWidth="sm"
+        title="Generar Remito"
+        subtitle="Completa los datos adicionales del remito"
+        actions={(
+          <>
+            <Button onClick={() => setRemitoModalOpen(false)} variant="outlined">Cancelar</Button>
+            <Button
+              variant="contained"
+              onClick={async () => {
+                try {
+                  setLoading(true)
+                  const resp = await deliveryNoteService.createFromWorkOrder(workOrderId, remitoForm)
+                  const data = resp.data
+                  if (data.error) throw new Error(data.error)
+                  notifySuccess(`Remito ${data.number} creado (N° de Remito: ${data.id_external || remitoForm.id_external || 'N/A'})`)
+                  setRemitoModalOpen(false)
+                  setRemitoForm({ id_external: '', notes: '' })
+                } catch (e) {
+                  console.error(e)
+                  notifyError('Error al generar remito')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+            >Crear</Button>
+          </>
+        )}
+      >
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
@@ -590,38 +677,43 @@ function WorkOrderForm() {
                   minRows={2}
                 />
               </Grid>
-              <Grid item xs={12} display="flex" justifyContent="flex-end" gap={1}>
-                <Button onClick={() => setRemitoModalOpen(false)}>Cancelar</Button>
-                <Button
-                  variant="contained"
-                  onClick={async () => {
-                    try {
-                      const resp = await deliveryNoteService.createFromWorkOrder(workOrderId, remitoForm)
-                      const data = resp.data
-                      if (data.error) throw new Error(data.error)
-                      alert(`Remito ${data.number} creado (N° de Remito: ${data.id_external || remitoForm.id_external || 'N/A'})`)
-                      setRemitoModalOpen(false)
-                      setRemitoForm({ id_external: '', notes: '' })
-                    } catch (e) {
-                      console.error(e)
-                      alert('Error al generar remito')
-                    }
-                  }}
-                >Crear</Button>
-              </Grid>
             </Grid>
-          </CardContent>
-        </Card>
-      )}
+      </StyledDialog>
 
       {/* Factura Modal */}
-      {facturaModalOpen && (
-        <Card sx={{ position: 'fixed', top: '25%', left: '50%', transform: 'translateX(-50%)', zIndex: 1300, minWidth: 380 }}>
-          <CardContent>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">Generar Factura</Typography>
-              <Button size="small" onClick={() => setFacturaModalOpen(false)}>Cerrar</Button>
-            </Box>
+      <StyledDialog
+        open={facturaModalOpen}
+        onClose={() => setFacturaModalOpen(false)}
+        maxWidth="sm"
+        title="Generar Factura"
+        subtitle="Selecciona el tipo e informa el ID AFIP si corresponde"
+        actions={(
+          <>
+            <Button onClick={() => setFacturaModalOpen(false)} variant="outlined">Cancelar</Button>
+            <Button
+              variant="contained"
+              onClick={async () => {
+                try {
+                  setLoading(true)
+                  const resp = await invoiceService.createFromWorkOrder(workOrderId, facturaForm)
+                  const data = resp.data
+                  if (data.error) throw new Error(data.error)
+                  await loadWorkOrderData()
+                  notifySuccess(`Factura ${data.number} (Tipo ${facturaForm.invoice_type}) creada (AFIP: ${data.id_afip || facturaForm.id_afip || 'N/A'})`)
+                  setFacturaModalOpen(false)
+                  setFacturaForm({ id_afip: '', invoice_type: 'A' })
+                } catch (e) {
+                  console.error(e)
+                  notifyError('Error al generar factura')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={workOrder.status !== 'OPEN'}
+            >Crear</Button>
+          </>
+        )}
+      >
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
@@ -644,100 +736,189 @@ function WorkOrderForm() {
                   fullWidth
                 />
               </Grid>
-              <Grid item xs={12} display="flex" justifyContent="flex-end" gap={1}>
-                <Button onClick={() => setFacturaModalOpen(false)}>Cancelar</Button>
-                <Button
-                  variant="contained"
-                  onClick={async () => {
-                    try {
-                      const resp = await invoiceService.createFromWorkOrder(workOrderId, facturaForm)
-                      const data = resp.data
-                      if (data.error) throw new Error(data.error)
-                      await loadWorkOrderData()
-                      alert(`Factura ${data.number} (Tipo ${facturaForm.invoice_type}) creada (AFIP: ${data.id_afip || facturaForm.id_afip || 'N/A'})`)
-                      setFacturaModalOpen(false)
-                      setFacturaForm({ id_afip: '', invoice_type: 'A' })
-                    } catch (e) {
-                      console.error(e)
-                      alert('Error al generar factura')
-                    }
-                  }}
-                  disabled={workOrder.status !== 'OPEN'}
-                >Crear</Button>
-              </Grid>
             </Grid>
-          </CardContent>
-        </Card>
-      )}
+      </StyledDialog>
 
       {/* Tabla de Items */}
       <Card>
         <CardContent>
           <Typography variant="h6" mb={2}>Items del Remito</Typography>
 
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Buscar item"
-                placeholder="Nombre o código..."
-                value={itemSearchTerm}
-                onChange={(e) => setItemSearchTerm(e.target.value)}
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Tipo</InputLabel>
-                <Select
-                  value={itemFilterType}
-                  label="Tipo"
-                  onChange={(e) => setItemFilterType(e.target.value)}
+          {/* Filters Always Visible - Above Search */}
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>Filtros</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <Select
+                    multiple
+                    value={itemFilterTags}
+                    onChange={(e) => setItemFilterTags(e.target.value)}
+                    displayEmpty
+                    renderValue={() => (
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        Seleccione los tags.. 
+                      </Typography>
+                    )}
+                  >
+                    {tags.map((tag) => (
+                      <MenuItem key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              {itemFilterTags.length > 0 && (
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                    {itemFilterTags.map((tagId) => {
+                      const tag = tags.find(t => String(t.id) === String(tagId));
+                      return tag ? (
+                        <Chip
+                          key={tag.id}
+                          label={tag.name}
+                          onDelete={() => setItemFilterTags(itemFilterTags.filter(id => id !== tagId))}
+                          sx={{
+                            bgcolor: 'rgba(25, 118, 210, 0.15)',
+                            color: '#1976d2',
+                            height: '28px',
+                            fontWeight: 500,
+                          }}
+                        />
+                      ) : null;
+                    })}
+                  </Box>
+                </Grid>
+              )}
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setItemFilterTags([])}
                 >
-                  <MenuItem value="ALL">Todos</MenuItem>
-                  <MenuItem value="PRODUCT">Producto</MenuItem>
-                  <MenuItem value="SERVICE">Servicio</MenuItem>
-                  <MenuItem value="EXTRA_CHARGE">Gasto Extra</MenuItem>
-                </Select>
-              </FormControl>
+                  Limpiar filtros
+                </Button>
+              </Grid>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Tags</InputLabel>
-                <Select
-                  multiple
-                  value={itemFilterTags}
-                  label="Tags"
-                  onChange={(e) => setItemFilterTags(e.target.value)}
-                  renderValue={() => (
-                    itemFilterTags.length > 0
-                      ? `${itemFilterTags.length} tag(s)`
-                      : 'Seleccionar tags'
-                  )}
+          </Box>
+
+          {/* Autocomplete Search Section */}
+          <Box sx={{ mb: 3 }}>
+            <Autocomplete
+              ref={autocompleteRef}
+              options={items}
+              getOptionLabel={(opt) => `${opt.name}`}
+              value={selectedItemForAdd}
+              onChange={(e, newValue) => {
+                setSelectedItemForAdd(newValue);
+                if (newValue) {
+                  handleQuickAddItem(newValue);
+                }
+              }}
+              inputValue={itemSearchTerm}
+              onInputChange={(e, newInputValue) => {
+                setItemSearchTerm(newInputValue);
+              }}
+              filterOptions={(opts, state) => {
+                const input = state.inputValue.toLowerCase();
+                
+                // Filter by search term (if any)
+                let filtered = opts;
+                if (input) {
+                  filtered = opts.filter(item => 
+                    item.name.toLowerCase().includes(input) || 
+                    (item.code || '').toLowerCase().includes(input)
+                  );
+                }
+                
+                // Apply tag filtering (always, even without search)
+                if (itemFilterTags.length > 0) {
+                  const selectedTagIds = itemFilterTags.map((id) => Number(id));
+                  filtered = filtered.filter(item =>
+                    (item.tags || []).some((tag) => selectedTagIds.includes(Number(tag.id)))
+                  );
+                }
+                
+                return filtered;
+              }}
+              noOptionsText="Sin resultados"
+              placeholder="Búsqueda rápida"
+              fullWidth
+              size="small"
+              ListboxProps={{
+                sx: {
+                  maxHeight: 400,
+                  '& .MuiAutocomplete-option': {
+                    alignItems: 'flex-start',
+                    py: 1.25,
+                    px: 1.5,
+                    borderBottom: '1px solid #e3e8ee',
+                    backgroundColor: 'var(--row-bg) !important',
+                  },
+                  '& .MuiAutocomplete-option:hover': {
+                    backgroundColor: 'var(--row-bg) !important',
+                  },
+                  '& .MuiAutocomplete-option.Mui-focused': {
+                    backgroundColor: 'var(--row-bg) !important',
+                  },
+                  '& .MuiAutocomplete-option[aria-selected="true"]': {
+                    backgroundColor: 'var(--row-bg) !important',
+                  },
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Agregar producto o servicio"
+                  placeholder="Escribe nombre o código..."
+                />
+              )}
+              renderOption={(props, option, state) => (
+                <li
+                  {...props}
+                  style={{
+                    ...props.style,
+                    '--row-bg': state.index % 2 === 0 ? '#f7fbff' : '#f8fcf8',
+                  }}
                 >
-                  {tags.map((tag) => (
-                    <MenuItem key={tag.id} value={tag.id}>
-                      {tag.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={1}>
-              <Button
-                fullWidth
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  setItemSearchTerm('');
-                  setItemFilterType('ALL');
-                  setItemFilterTags([]);
-                }}
-              >
-                Limpiar
-              </Button>
-            </Grid>
-          </Grid>
+                  <Box sx={{ width: '100%' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700, fontSize: '1rem', mb: 0.5 }}>
+                      {option.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1.5, mb: 0.75 }}>
+                      <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
+                        Costo: {formatCurrency(option.purchase_price || 0, false)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                        Venta: {formatCurrency(option.sale_price || 0, false)}
+                      </Typography>
+                    </Box>
+                    {option.tags && option.tags.length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.75 }}>
+                        {option.tags.map((tag) => (
+                          <Chip
+                            key={tag.id}
+                            label={tag.name}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              height: '20px',
+                              fontSize: '0.7rem',
+                              bgcolor: 'rgba(25, 118, 210, 0.08)',
+                              borderColor: 'rgba(25, 118, 210, 0.3)',
+                              color: '#1976d2',
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                </li>
+              )}
+            />
+            
+          </Box>
 
           {/* Tabla de items */}
           <TableContainer component={Paper}>
@@ -745,7 +926,6 @@ function WorkOrderForm() {
               <TableHead>
                 <TableRow>
                   <TableCell>Item</TableCell>
-                  <TableCell>Tipo</TableCell>
                   <TableCell align="center" sx={{ py: 0.75 }}>Cant.</TableCell>
                   <TableCell align="right" sx={{ py: 0.75 }}>Costo Unit.</TableCell>
                   <TableCell align="right" sx={{ py: 0.75 }}>Precio Unit.</TableCell>
@@ -760,33 +940,6 @@ function WorkOrderForm() {
                 {orderItems.map((item) => (
                   <TableRow key={item.id} sx={{ '& td': { py: 0.5 } }}>
                     <TableCell sx={{ py: 0.5 }}>{item.name}</TableCell>
-                    <TableCell>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          px: 1, 
-                          py: 0.5, 
-                          borderRadius: 1, 
-                          bgcolor: (() => {
-                            const t = (item.type || '').toString().toLowerCase();
-                            if (t === 'product' || t === 'producto') return 'success.light';
-                            if (t === 'service' || t === 'servicio') return 'primary.light';
-                            if (t === 'extra_cost' || t === 'costo_extra') return 'warning.light';
-                            return 'grey.500';
-                          })(),
-                          color: 'white',
-                          fontSize: '0.75rem'
-                        }}
-                      >
-                        {(() => {
-                          const t = (item.type || '').toString().toLowerCase();
-                          if (t === 'product' || t === 'producto') return 'producto';
-                          if (t === 'service' || t === 'servicio') return 'servicio';
-                          if (t === 'extra_cost' || t === 'costo_extra') return 'costo extra';
-                          return t || 'item';
-                        })()}
-                      </Typography>
-                    </TableCell>
                     <TableCell align="center">
                         <TextField
                           size="small"
@@ -853,151 +1006,21 @@ function WorkOrderForm() {
                   </TableRow>
                 ))}
                 
-                {/* Fila para agregar nuevo item */}
-                {!isInvoiced && (
-                <TableRow sx={{ bgcolor: 'grey.50', '& td': { py: 0.5 } }}>
-                  <TableCell>
-                    <TextField
-                      select
-                      size="small"
-                      placeholder="Seleccionar item..."
-                      value={newItem.item_id}
-                      onChange={(e) => handleItemChange('item_id', e.target.value)}
-                      variant="outlined"
-                      sx={{ width: 250 }}
-                    >
-                      <MenuItem value="">Seleccionar...</MenuItem>
-                      {filteredItemsForPicker.map((item) => (
-                        <MenuItem key={item.id} value={item.id}>
-                          {item.name} ({item.type})
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </TableCell>
-                  <TableCell>
-                    {newItem.item_id && (
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          px: 1, 
-                          py: 0.5, 
-                          borderRadius: 1, 
-                          bgcolor: (() => {
-                            const selectedItem = items.find(item => item.id === parseInt(newItem.item_id));
-                            const t = (selectedItem?.type || '').toString().toLowerCase();
-                            if (t === 'product' || t === 'producto') return 'success.light';
-                            if (t === 'service' || t === 'servicio') return 'primary.light';
-                            if (t === 'extra_cost' || t === 'costo_extra') return 'warning.light';
-                            return 'grey.500';
-                          })(),
-                          color: 'white',
-                          fontSize: '0.75rem'
-                        }}
-                      >
-                        {(() => {
-                          const t = items.find(item => item.id === parseInt(newItem.item_id))?.type?.toString().toLowerCase();
-                          if (t === 'product' || t === 'producto') return 'producto';
-                          if (t === 'service' || t === 'servicio') return 'servicio';
-                          if (t === 'extra_cost' || t === 'costo_extra') return 'costo extra';
-                          return t || 'item';
-                        })()}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <TextField
-                      size="small"
-                      type="number"
-                      value={newItem.quantity}
-                      onChange={(e) => handleItemChange('quantity', parseInt(e.target.value) || 1)}
-                      inputProps={{ min: 1, style: { textAlign: 'center' } }}
-                      sx={{ width: 70 }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <TextField
-                      size="small"
-                      type="text"
-                      value={newItem.costRaw}
-                      onChange={(e) => handleItemChange('costRaw', e.target.value)}
-                      placeholder={newItem.cost ? formatNumber(newItem.cost) : ''}
-                      sx={{ width: 160 }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <TextField
-                      size="small"
-                      type="text"
-                      value={newItem.priceRaw}
-                      onChange={(e) => handleItemChange('priceRaw', e.target.value)}
-                      placeholder={newItem.price ? formatNumber(newItem.price) : ''}
-                      sx={{ width: 160 }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" color="text.secondary">
-                      {formatCurrency(((newItem.priceRaw ? parseCommasToNumber(newItem.priceRaw) : (newItem.price || 0)) * newItem.quantity), false)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <TextField
-                      select
-                      size="small"
-                      value={newItem.iva_percentage}
-                      onChange={(e) => handleItemChange('iva_percentage', parseFloat(e.target.value))}
-                      sx={{ width: 85 }}
-                    >
-                      <MenuItem value={0}>0%</MenuItem>
-                      <MenuItem value={10.5}>10.5%</MenuItem>
-                      <MenuItem value={21}>21%</MenuItem>
-                      <MenuItem value={27}>27%</MenuItem>
-                    </TextField>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" color="text.secondary">
-                      {(() => {
-                        const price = newItem.priceRaw ? parseCommasToNumber(newItem.priceRaw) : (newItem.price || 0);
-                        const subtotal = price * newItem.quantity;
-                        const iva = subtotal * ((newItem.iva_percentage ?? 21) / 100);
-                        return formatCurrency(iva, false);
-                      })()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                      {(() => {
-                        const price = newItem.priceRaw ? parseCommasToNumber(newItem.priceRaw) : (newItem.price || 0);
-                        const subtotal = price * newItem.quantity;
-                        const iva = subtotal * ((newItem.iva_percentage ?? 21) / 100);
-                        return formatCurrency(subtotal + iva, false);
-                      })()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      color="primary"
-                      onClick={handleAddItem}
-                      disabled={!newItem.item_id}
-                      size="small"
-                    >
-                      <AddIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-                )}
-                
-                {orderItems.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={10} align="center" sx={{ py: 3 }}>
-                      <Typography color="text.secondary">
-                        Selecciona un item en la fila de abajo para comenzar
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Empty State Message */}
+          {orderItems.length === 0 && (
+            <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+              <Typography variant="body1" gutterBottom>
+                Sin items agregados
+              </Typography>
+              <Typography variant="body2">
+                Usa la búsqueda rápida arriba para agregar productos o servicios (Ctrl+K)
+              </Typography>
+            </Box>
+          )}
 
           {/* Totales */}
           {orderItems.length > 0 && (
@@ -1022,7 +1045,7 @@ function WorkOrderForm() {
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={2.4}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>TOTAL FACTURA</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>MONTO DEL REMITO (TOTAL FACTURA)</Typography>
                   <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
                     {formatCurrency(totalInvoice, false)}
                   </Typography>

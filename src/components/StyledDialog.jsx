@@ -5,7 +5,8 @@ import {
   DialogActions, 
   Typography, 
   Box, 
-  IconButton 
+  IconButton,
+  Divider
 } from '@mui/material'
 import { Close as CloseIcon } from '@mui/icons-material'
 
@@ -27,7 +28,7 @@ function StyledDialog({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: 1.5,
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         }
       }}
@@ -36,26 +37,29 @@ function StyledDialog({
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          pb: 2,
-          borderBottom: '1px solid #e2e8f0',
+          alignItems: 'flex-start',
+          gap: 2,
+          px: 3,
+          py: 1.5,
           background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
         }}
       >
-        <Box>
-          <Typography variant="h5" fontWeight={700} color="primary">
+        <Box sx={{ pr: 1 }}>
+          <Typography variant="h6" fontWeight={700} color="primary" sx={{ lineHeight: 1.25 }}>
             {icon} {title}
           </Typography>
           {subtitle && (
-            <Typography variant="body2" color="text.secondary" mt={0.5}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.45 }}>
               {subtitle}
             </Typography>
           )}
         </Box>
         <IconButton
           onClick={onClose}
+          size="small"
           sx={{
             backgroundColor: 'grey.100',
+            mt: 0.1,
             '&:hover': { backgroundColor: 'grey.200' }
           }}
         >
@@ -63,21 +67,36 @@ function StyledDialog({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 4, pb: 3, px: 4 }}>
-        {children}
+      <Divider />
+
+      <DialogContent
+        sx={{
+          p: 3,
+          '&:first-of-type': {
+            pt: 3,
+          },
+        }}
+      >
+        <Box sx={{ display: 'grid', gap: 2 }}>
+          {children}
+        </Box>
       </DialogContent>
 
       {actions && (
-        <DialogActions
-          sx={{
-            px: 3,
-            py: 2.5,
-            borderTop: '1px solid #e2e8f0',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
-          }}
-        >
-          {actions}
-        </DialogActions>
+        <>
+          <Divider />
+          <DialogActions
+            sx={{
+              px: 3,
+              py: 1.25,
+              gap: 1,
+              justifyContent: 'flex-end',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+            }}
+          >
+            {actions}
+          </DialogActions>
+        </>
       )}
     </Dialog>
   )

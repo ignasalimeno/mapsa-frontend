@@ -9,7 +9,9 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  Typography,
+  Container
 } from '@mui/material'
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
 import { customerService } from '../services/api'
@@ -143,20 +145,27 @@ function CustomerForm() {
           </Button>
         ]}
       >
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mb: 3,
-              borderRadius: 2,
-              '& .MuiAlert-message': { fontWeight: 500 }
-            }}
-          >
-            {error}
-          </Alert>
-        )}
-        
-        <Grid container spacing={3}>
+        <Container maxWidth="sm" disableGutters>
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                borderRadius: 2,
+                '& .MuiAlert-message': { fontWeight: 500 }
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+          
+          <Grid container spacing={2.5}>
+          {/* IDENTIFICACIÓN */}
+          <Grid item xs={12}>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+              Identificación
+            </Typography>
+          </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
@@ -167,6 +176,7 @@ function CustomerForm() {
               onChange={handleChange}
               required
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -178,8 +188,16 @@ function CustomerForm() {
               onChange={handleChange}
               required
               variant="outlined"
+              size="small"
               sx={{ '& .MuiInputLabel-asterisk': { color: 'error.main' } }}
             />
+          </Grid>
+
+          {/* FISCAL */}
+          <Grid item xs={12} sx={{ mt: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+              Fiscal
+            </Typography>
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
@@ -189,6 +207,7 @@ function CustomerForm() {
               value={customer.document_number}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -199,11 +218,12 @@ function CustomerForm() {
               value={customer.cuit}
               onChange={handleChange}
               variant="outlined"
+              size="small"
               placeholder="20-12345678-9"
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small">
               <InputLabel id="tax-condition-label">Condición frente al IVA</InputLabel>
               <Select
                 labelId="tax-condition-label"
@@ -218,15 +238,23 @@ function CustomerForm() {
               </Select>
             </FormControl>
           </Grid>
+          
+          {/* CONTACTO */}
+          <Grid item xs={12} sx={{ mt: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+              Contacto
+            </Typography>
+          </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Contacto"
+              label="Persona de contacto"
               name="contact"
               value={customer.contact}
               onChange={handleChange}
               variant="outlined"
-              placeholder="Nombre de la persona de contacto"
+              size="small"
+              placeholder="Nombre de la persona"
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -237,7 +265,8 @@ function CustomerForm() {
               value={customer.phone}
               onChange={handleChange}
               variant="outlined"
-              placeholder="Ej: +54 11 1234-5678"
+              size="small"
+              placeholder="+54 11 1234-5678"
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -249,8 +278,16 @@ function CustomerForm() {
               value={customer.email}
               onChange={handleChange}
               variant="outlined"
+              size="small"
               placeholder="cliente@email.com"
             />
+          </Grid>
+
+          {/* UBICACIÓN */}
+          <Grid item xs={12} sx={{ mt: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+              Ubicación
+            </Typography>
           </Grid>
           <Grid item xs={12}>
             <TextField
@@ -260,11 +297,12 @@ function CustomerForm() {
               value={customer.address}
               onChange={handleChange}
               variant="outlined"
+              size="small"
               placeholder="Calle, número, ciudad"
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small">
               <InputLabel id="province-label">Provincia</InputLabel>
               <Select
                 labelId="province-label"
@@ -288,8 +326,16 @@ function CustomerForm() {
               value={customer.postal_code}
               onChange={handleChange}
               variant="outlined"
-              placeholder="Ej: B1644 o 5000"
+              size="small"
+              placeholder="B1644"
             />
+          </Grid>
+
+          {/* COMPLEMENTARIO */}
+          <Grid item xs={12} sx={{ mt: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+              Complementario
+            </Typography>
           </Grid>
           <Grid item xs={12}>
             <TextField
@@ -297,14 +343,15 @@ function CustomerForm() {
               label="Notas adicionales"
               name="notes"
               multiline
-              rows={4}
+              rows={3}
               value={customer.notes}
               onChange={handleChange}
               variant="outlined"
               placeholder="Información adicional sobre el cliente..."
             />
           </Grid>
-        </Grid>
+          </Grid>
+        </Container>
       </FormCard>
     </Box>
   )

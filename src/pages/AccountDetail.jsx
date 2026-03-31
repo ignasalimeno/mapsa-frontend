@@ -305,7 +305,7 @@ function AccountDetail() {
               <TableBody>
                 {account.movements.map(movement => (
                   <TableRow key={movement.id}>
-                    <TableCell>{new Date(movement.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(movement.date)}</TableCell>
                     <TableCell>
                       <Chip 
                         label={movement.type === 'PAYMENT' ? 'Pago' : movement.type === 'INVOICE' ? 'Factura' : movement.type === 'DEBIT_NOTE' ? 'N/D' : 'N/C'} 

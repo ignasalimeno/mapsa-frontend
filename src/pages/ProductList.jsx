@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   TextField,
   Table,
   TableBody,
@@ -10,8 +12,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Paper,
-  IconButton,
   Chip,
   Typography,
   InputAdornment,
@@ -23,22 +25,23 @@ import {
 } from '@mui/material'
 import {
   Add as AddIcon,
-  Edit as EditIcon,
-  Inventory as StockIcon,
   Search as SearchIcon
 } from '@mui/icons-material'
 import { itemService, stockService, tagService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import StockBadge from '../components/StockBadge'
+import { PageLayout, TableActionIconButton } from '../components'
 
 function ProductList() {
   const [products, setProducts] = useState([])
   const [stockData, setStockData] = useState({})
+  const [productTags, setProductTags] = useState({})
   const [tags, setTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTag, setFilterTag] = useState('')
-  const [filterType, setFilterType] = useState('PRODUCT')
+  const [order, setOrder] = useState('asc')
+  const [orderBy, setOrderBy] = useState('name')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -65,6 +68,19 @@ function ProductList() {
         stockMap[item.id] = item.total_quantity
       })
       setStockData(stockMap)
+
+      // Cargar tags por producto para mostrar en grilla y filtrar por tag
+      const tagsEntries = await Promise.all(
+        productsRes.data.map(async (product) => {
+          try {
+            const res = await tagService.getItemTags(product.id)
+            return [product.id, res.data || []]
+          } catch {
+            return [product.id, product.tags || []]
+          }
+        })
+      )
+      setProductTags(Object.fromEntries(tagsEntries))
     } catch (error) {
       console.error('Error cargando datos:', error)
     } finally {
@@ -83,10 +99,63 @@ function ProductList() {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.code && product.code.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesType = !filterType || product.type === filterType
-    // TODO: Filtrar por tag cuando tengamos la info de tags por producto
-    return matchesSearch && matchesType
+    const tagList = productTags[product.id] || product.tags || []
+    const matchesTag = !filterTag || tagList.some(tag => String(tag.id) === String(filterTag))
+    return matchesSearch && matchesTag
   })
+
+  const getSortableValue = (product, field) => {
+    switch (field) {
+      case 'code':
+        return product.code || ''
+      case 'name':
+        return product.name || ''
+      case 'tags':
+        return (productTags[product.id] || product.tags || []).map((tag) => tag.name).join(', ')
+      case 'purchase_price':
+        return Number(product.purchase_price || 0)
+      case 'sale_price':
+        return Number(product.sale_price || 0)
+      case 'iva_rate':
+        return Number(product.iva_rate || 0)
+      case 'stock':
+        return Number(stockData[product.id] || 0)
+      default:
+        return product[field] ?? ''
+    }
+  }
+
+  const handleRequestSort = (field) => {
+    const isAsc = orderBy === field && order === 'asc'
+    setOrder(isAsc ? 'desc' : 'asc')
+    setOrderBy(field)
+  }
+
+  const sortedProducts = [...filteredProducts].sort((left, right) => {
+    const leftValue = getSortableValue(left, orderBy)
+    const rightValue = getSortableValue(right, orderBy)
+
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      return order === 'asc' ? leftValue - rightValue : rightValue - leftValue
+    }
+
+    const comparison = String(leftValue).localeCompare(String(rightValue), 'es', {
+      numeric: true,
+      sensitivity: 'base',
+    })
+
+    return order === 'asc' ? comparison : -comparison
+  })
+
+  const sortableColumns = [
+    { id: 'code', label: 'Código' },
+    { id: 'name', label: 'Nombre' },
+    { id: 'tags', label: 'Tags' },
+    { id: 'purchase_price', label: 'Costo', align: 'right' },
+    { id: 'sale_price', label: 'Precio', align: 'right' },
+    { id: 'iva_rate', label: 'IVA %', align: 'center' },
+    { id: 'stock', label: 'Stock', align: 'center' },
+  ]
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('es-AR', {
@@ -96,14 +165,10 @@ function ProductList() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <LoadingOverlay open={loading} message="Cargando productos..." />
-      
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">
-          Productos
-        </Typography>
+    <PageLayout
+      title="Productos"
+      subtitle={`${filteredProducts.length} producto${filteredProducts.length !== 1 ? 's' : ''}`}
+      actions={(
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -112,72 +177,69 @@ function ProductList() {
         >
           Nuevo Producto
         </Button>
-      </Box>
+      )}
+    >
+      <LoadingOverlay open={loading} message="Cargando productos..." />
 
-      {/* Filtros */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            placeholder="Buscar por nombre o código..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ flexGrow: 1 }}
-          />
-          
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel>Tipo</InputLabel>
-            <Select
-              value={filterType}
-              label="Tipo"
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              <MenuItem value="PRODUCT">Productos</MenuItem>
-              <MenuItem value="SERVICE">Servicios</MenuItem>
-              <MenuItem value="EXTRA_CHARGE">Gastos Extra</MenuItem>
-            </Select>
-          </FormControl>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              placeholder="Buscar por nombre o código..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ flexGrow: 1 }}
+            />
+            
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Tag</InputLabel>
+              <Select
+                value={filterTag}
+                label="Tag"
+                onChange={(e) => setFilterTag(e.target.value)}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {tags.map(tag => (
+                  <MenuItem key={tag.id} value={tag.id}>{tag.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+        </CardContent>
+      </Card>
 
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel>Tag</InputLabel>
-            <Select
-              value={filterTag}
-              label="Tag"
-              onChange={(e) => setFilterTag(e.target.value)}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {tags.map(tag => (
-                <MenuItem key={tag.id} value={tag.id}>{tag.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </Paper>
-
-      {/* Tabla */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.100' }}>
-              <TableCell><strong>Código</strong></TableCell>
-              <TableCell><strong>Nombre</strong></TableCell>
-              <TableCell><strong>Tipo</strong></TableCell>
-              <TableCell align="right"><strong>Costo</strong></TableCell>
-              <TableCell align="right"><strong>Precio</strong></TableCell>
-              <TableCell align="center"><strong>IVA %</strong></TableCell>
-              <TableCell align="center"><strong>Stock</strong></TableCell>
-              <TableCell align="center"><strong>Acciones</strong></TableCell>
+            <TableRow sx={{ backgroundColor: 'grey.50' }}>
+              {sortableColumns.map((column) => (
+                <TableCell
+                  key={column.id}
+                  align={column.align || 'left'}
+                  sortDirection={orderBy === column.id ? order : false}
+                  sx={{ fontWeight: 600, py: 2 }}
+                >
+                  <TableSortLabel
+                    active={orderBy === column.id}
+                    direction={orderBy === column.id ? order : 'asc'}
+                    onClick={() => handleRequestSort(column.id)}
+                  >
+                    {column.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+              <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredProducts.length === 0 ? (
+            {sortedProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
@@ -186,10 +248,16 @@ function ProductList() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProducts.map((product) => (
-                <TableRow key={product.id} hover>
-                  <TableCell>{product.code || '-'}</TableCell>
-                  <TableCell>
+              sortedProducts.map((product, index) => (
+                <TableRow
+                  key={product.id}
+                  sx={{
+                    '&:hover': { backgroundColor: 'grey.50' },
+                    borderBottom: index === sortedProducts.length - 1 ? 'none' : '1px solid #e2e8f0',
+                  }}
+                >
+                  <TableCell sx={{ py: 2.5 }}>{product.code || '-'}</TableCell>
+                  <TableCell sx={{ py: 2.5 }}>
                     <Typography variant="body2" fontWeight="medium">
                       {product.name}
                     </Typography>
@@ -199,46 +267,58 @@ function ProductList() {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={product.type}
-                      size="small"
-                      color={product.type === 'PRODUCT' ? 'primary' : 'default'}
-                    />
+                  <TableCell sx={{ py: 2.5 }}>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                      {(productTags[product.id] || product.tags || []).length === 0 ? (
+                        <Typography variant="caption" color="text.secondary">-</Typography>
+                      ) : (
+                        (productTags[product.id] || product.tags || []).map((tag) => (
+                          <Chip
+                            key={`${product.id}-${tag.id}`}
+                            label={tag.name}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              bgcolor: 'rgba(25, 118, 210, 0.08)',
+                              borderColor: 'rgba(25, 118, 210, 0.25)',
+                              color: 'primary.main'
+                            }}
+                          />
+                        ))
+                      )}
+                    </Stack>
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ py: 2.5 }}>
                     {formatPrice(product.purchase_price)}
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ py: 2.5 }}>
                     <Typography fontWeight="bold">
                       {formatPrice(product.sale_price)}
                     </Typography>
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="center" sx={{ py: 2.5 }}>
                     {product.iva_rate}%
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="center" sx={{ py: 2.5 }}>
                     {product.type === 'PRODUCT' && (
                       <StockBadge quantity={stockData[product.id] || 0} />
                     )}
                   </TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEdit(product.id)}
-                      color="primary"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    {product.type === 'PRODUCT' && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleViewStock(product.id)}
-                        color="info"
-                      >
-                        <StockIcon />
-                      </IconButton>
-                    )}
+                  <TableCell align="center" sx={{ py: 2.5 }}>
+                    <Stack direction="row" spacing={1} justifyContent="center">
+                      <TableActionIconButton
+                        kind="edit"
+                        onClick={() => handleEdit(product.id)}
+                        ariaLabel={`Editar producto ${product.name}`}
+                      />
+                      {product.type === 'PRODUCT' && (
+                        <TableActionIconButton
+                          kind="stock"
+                          onClick={() => handleViewStock(product.id)}
+                          ariaLabel={`Ver stock de ${product.name}`}
+                        />
+                      )}
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))
@@ -246,7 +326,7 @@ function ProductList() {
           </TableBody>
         </Table>
       </TableContainer>
-    </Box>
+    </PageLayout>
   )
 }
 

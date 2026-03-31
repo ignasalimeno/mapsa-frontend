@@ -11,20 +11,32 @@ function PageLayout({
 }) {
   return (
     <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh', py: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} px={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={4}
+        px={3}
+        py={2.5}
+        sx={{
+          backgroundColor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'grey.200',
+        }}
+      >
         <Box display="flex" alignItems="center">
           {onBack && (
             <Button
               startIcon={<BackIcon />}
               onClick={onBack}
               variant="outlined"
-              sx={{ mr: 3 }}
+              sx={{ mr: 3, px: 2.5 }}
             >
               {backLabel}
             </Button>
           )}
           <Box>
-            <Typography variant="h4" gutterBottom>{title}</Typography>
+            <Typography variant="h4" gutterBottom sx={{ mb: subtitle ? 0.5 : 0 }}>{title}</Typography>
             {subtitle && (
               <Typography variant="body2" color="text.secondary">
                 {subtitle}

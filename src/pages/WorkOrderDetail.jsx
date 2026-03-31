@@ -5,34 +5,21 @@ import {
   Button,
   Card,
   CardContent,
-  CircularProgress,
   Alert,
   Typography,
   Grid,
   TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
   MenuItem,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
 } from '@mui/material'
 import {
   Edit as EditIcon,
-  ArrowBack as ArrowBackIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material'
 import { workOrderService, invoiceService, paymentService, accountService } from '../services/api'
-import { PageLayout } from '../components'
-import { formatCurrency, formatNumber } from '../utils/formatters'
+import { LoadingOverlay, PageLayout, StyledDialog } from '../components'
+import { formatCurrency, formatDate, formatNumber } from '../utils/formatters'
+import { useConfirm, useNotify } from '../context'
 
 function WorkOrderDetail() {
   const { id } = useParams()
@@ -46,6 +33,8 @@ function WorkOrderDetail() {
   const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'cash', reference: '' })
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
   const [invoiceFile, setInvoiceFile] = useState(null)
+  const confirm = useConfirm()
+  const { error: notifyError, success: notifySuccess, warning: notifyWarning } = useNotify()
 
   useEffect(() => {
     loadWorkOrderData()
@@ -78,10 +67,10 @@ function WorkOrderDetail() {
       const data = resp.data
       if (data.error) throw new Error(data.error)
       await loadWorkOrderData()
-      alert(`Remito generado: ${data.delivery_note_number}`)
+      notifySuccess(`Remito generado: ${data.delivery_note_number}`)
     } catch (e) {
       console.error(e)
-      alert('Error al generar remito')
+      notifyError('Error al generar remito')
     } finally {
       setGenerating(false)
     }
@@ -92,15 +81,21 @@ function WorkOrderDetail() {
   }
 
   const handleDeleteWorkOrder = async () => {
-    const confirmed = window.confirm(`¿Eliminar el remito ${workOrder.external_id || `#${workOrder.id}`}? Esta acción no se puede deshacer.`)
+    const confirmed = await confirm({
+      title: 'Eliminar remito',
+      message: `Vas a eliminar el remito ${workOrder.external_id || '-'}. Esta accion no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      confirmColor: 'error',
+    })
     if (!confirmed) return
 
     try {
       await workOrderService.delete(id)
+      notifySuccess('Remito eliminado correctamente')
       navigate('/work-orders')
     } catch (err) {
       console.error(err)
-      alert('Error al eliminar remito')
+      notifyError('Error al eliminar remito')
     }
   }
 
@@ -116,17 +111,17 @@ function WorkOrderDetail() {
           await invoiceService.uploadAttachment(data.id_invoice, invoiceFile)
         } catch (uploadErr) {
           console.error('Error subiendo adjunto', uploadErr)
-          alert('Factura creada pero hubo un error subiendo el adjunto')
+          notifyWarning('Factura creada, pero hubo un error subiendo el adjunto')
         }
       }
 
       await loadWorkOrderData()
       setInvoiceModalOpen(false)
       setInvoiceFile(null)
-      alert(`Factura ${data.number} creada. Movimiento #${data.movement_id}`)
+      notifySuccess(`Factura ${data.number} creada. Movimiento #${data.movement_id}`)
     } catch (e) {
       console.error(e)
-      alert('Error al generar factura')
+      notifyError('Error al generar factura')
     } finally {
       setGenerating(false)
     }
@@ -151,10 +146,10 @@ function WorkOrderDetail() {
       await loadWorkOrderData()
       setPaymentForm({ amount: '', method: 'cash', reference: '' })
       closePaymentModal()
-      alert('Pago registrado')
+      notifySuccess('Pago registrado')
     } catch (e) {
       console.error(e)
-      alert('Error al registrar pago')
+      notifyError('Error al registrar pago')
     } finally {
       setGenerating(false)
     }
@@ -182,14 +177,6 @@ function WorkOrderDetail() {
     }
   }
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" p={4}>
-        <CircularProgress />
-      </Box>
-    )
-  }
-
   if (error) {
     return <Alert severity="error">{error}</Alert>
   }
@@ -200,10 +187,11 @@ function WorkOrderDetail() {
 
   return (
     <PageLayout
-      title={`Remito #${workOrder.id}`}
+      title={`Remito ${workOrder.external_id || '-'}`}
       subtitle={`${workOrder.customer_name} - ${workOrder.vehicle_info}`}
       onBack={() => navigate(-1)}
     >
+      <LoadingOverlay open={loading} message="Cargando remito..." />
       {/* Información General */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -249,7 +237,7 @@ function WorkOrderDetail() {
               
               <Typography variant="subtitle2" color="text.secondary">Fecha de Apertura</Typography>
               <Typography variant="body1" mb={2}>
-                {new Date(workOrder.open_date).toLocaleDateString()}
+                {formatDate(workOrder.open_date)}
               </Typography>
             </Grid>
             
@@ -289,7 +277,7 @@ function WorkOrderDetail() {
                   {formatCurrency(workOrder.final_total || 0, false)}
                 </Typography>
                 <Typography variant="subtitle1" color="primary.main">
-                  Total del Remito
+                  Monto del Remito (Total factura)
                 </Typography>
               </Box>
             </Grid>
@@ -332,7 +320,7 @@ function WorkOrderDetail() {
             <Grid item xs={12} md={4}>
               <Box textAlign="center" p={3} sx={{ backgroundColor: 'info.50', borderRadius: 2 }}>
                 <Typography variant="h5" fontWeight={600} color="info.main">
-                  {new Date(workOrder.open_date).toLocaleDateString()}
+                  {formatDate(workOrder.open_date)}
                 </Typography>
                 <Typography variant="subtitle1" color="info.main">
                   Fecha de Apertura
@@ -350,9 +338,21 @@ function WorkOrderDetail() {
       </Card>
 
       {/* Modal Generar Factura con adjunto opcional */}
-      <Dialog open={invoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Generar Factura</DialogTitle>
-        <DialogContent dividers>
+      <StyledDialog
+        open={invoiceModalOpen}
+        onClose={() => setInvoiceModalOpen(false)}
+        maxWidth="sm"
+        title="Generar Factura"
+        subtitle="Adjunta una imagen opcional para asociarla a la factura"
+        actions={(
+          <>
+            <Button onClick={() => { setInvoiceModalOpen(false); setInvoiceFile(null); }} variant="outlined" disabled={generating}>Cancelar</Button>
+            <Button variant="contained" onClick={handleConfirmInvoice} disabled={generating}>
+              {generating ? 'Generando...' : 'Generar Factura'}
+            </Button>
+          </>
+        )}
+      >
           <Typography gutterBottom>
             Adjunta una imagen (opcional) para asociarla a la factura.
           </Typography>
@@ -370,20 +370,22 @@ function WorkOrderDetail() {
               {invoiceFile.name} ({Math.round(invoiceFile.size / 1024)} KB)
             </Typography>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setInvoiceModalOpen(false); setInvoiceFile(null); }} disabled={generating}>Cancelar</Button>
-          <Button variant="contained" onClick={handleConfirmInvoice} disabled={generating}>
-            {generating ? 'Generando...' : 'Generar Factura'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </StyledDialog>
 
       {/* Payment Modal */}
-      {paymentOpen && (
-        <Card sx={{ position: 'fixed', top: '20%', left: '50%', transform: 'translateX(-50%)', zIndex: 1300, minWidth: 400 }}>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Registrar Pago</Typography>
+      <StyledDialog
+        open={paymentOpen}
+        onClose={closePaymentModal}
+        maxWidth="sm"
+        title="Registrar Pago"
+        subtitle={account ? `Balance actual: ${formatCurrency(account.balance || 0, false)}` : 'Registra un pago para el cliente'}
+        actions={(
+          <>
+            <Button onClick={closePaymentModal} variant="outlined">Cancelar</Button>
+            <Button variant="contained" onClick={submitPayment} disabled={generating}>Registrar</Button>
+          </>
+        )}
+      >
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
@@ -419,14 +421,8 @@ function WorkOrderDetail() {
                   <Typography variant="body2" color="text.secondary">Balance actual: {formatCurrency(account.balance || 0, false)}</Typography>
                 </Grid>
               )}
-              <Grid item xs={12} display="flex" justifyContent="flex-end" gap={1}>
-                <Button onClick={closePaymentModal}>Cancelar</Button>
-                <Button variant="contained" onClick={submitPayment}>Registrar</Button>
-              </Grid>
             </Grid>
-          </CardContent>
-        </Card>
-      )}
+      </StyledDialog>
     </PageLayout>
   )
 }

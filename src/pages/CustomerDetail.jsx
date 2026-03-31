@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  CircularProgress,
   Alert,
   Typography,
   Grid,
@@ -16,23 +15,15 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
   Chip,
   TextField,
   MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from "@mui/material";
 import {
   Add as AddIcon,
-  Assignment as WorkOrderIcon,
-  Visibility as ViewIcon,
   Edit as EditIcon,
   AccountBalance as AccountIcon,
   Save as SaveIcon,
-  Close as CloseIcon,
 } from "@mui/icons-material";
 import {
   customerService,
@@ -40,8 +31,9 @@ import {
   workOrderService,
   accountService,
 } from "../services/api";
-import { PageLayout, StyledCard, StyledTable, StyledDialog } from '../components';
-import { formatCurrency, formatNumber } from '../utils/formatters';
+import { LoadingOverlay, PageLayout, StyledDialog, TableActionIconButton } from '../components';
+import { formatCurrency, formatDate, formatNumber } from '../utils/formatters';
+import { useNotify } from '../context';
 
 const PROVINCES = [
   'Buenos Aires',
@@ -82,6 +74,7 @@ function CustomerDetail() {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const { error: notifyError, success: notifySuccess } = useNotify();
 
   // Estados para modales
   const [vehicleDialog, setVehicleDialog] = useState(false);
@@ -127,8 +120,7 @@ function CustomerDetail() {
       setWorkOrders(workOrdersRes.data);
     } catch (err) {
       setError("Error al cargar datos del cliente");
-        setCustomer(customerRes.data);
-        setWorkOrders(workOrdersRes.data);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -153,9 +145,11 @@ function CustomerDetail() {
         current_km: "",
         notes: "",
       });
-      loadCustomerData();
+      await loadCustomerData();
+      notifySuccess('Vehículo agregado correctamente');
     } catch (err) {
       console.error("Error al crear vehículo:", err);
+      notifyError('No se pudo crear el vehículo');
     }
   };
 
@@ -164,9 +158,11 @@ function CustomerDetail() {
       await customerService.update(id, editForm);
       setCustomer(editForm);
       setIsEditing(false);
+      notifySuccess('Cliente actualizado correctamente');
     } catch (err) {
       console.error("Error al actualizar cliente:", err);
       setError("Error al guardar cambios");
+      notifyError('No se pudieron guardar los cambios');
     }
   };
 
@@ -180,14 +176,27 @@ function CustomerDetail() {
     return (vehicle.plate || '').toLowerCase().includes(vehicleSearchTerm.toLowerCase());
   });
 
+  const getWorkOrderPlate = (vehicleId) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId)
+    return vehicle?.plate || '-'
+  }
 
+  const getWorkOrderAmount = (workOrder) => {
+    if (workOrder.status !== 'INVOICED') return null
+    return Number(workOrder.final_total || 0)
+  }
 
-  if (loading)
+  if (loading) {
     return (
-      <Box display="flex" justifyContent="center" p={4}>
-        <CircularProgress />
-      </Box>
-    );
+      <PageLayout
+        title="Detalle del Cliente"
+        subtitle="Información completa y gestión de vehículos y órdenes"
+      >
+        <LoadingOverlay open={loading} message="Cargando cliente..." />
+      </PageLayout>
+    )
+  }
+
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!customer) return <Alert severity="error">Cliente no encontrado</Alert>;
 
@@ -442,24 +451,30 @@ function CustomerDetail() {
               <TableContainer component={Paper}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow>
-                      <TableCell>Número</TableCell>
-                      <TableCell>Fecha</TableCell>
-                      <TableCell align="right">Total</TableCell>
-                      <TableCell align="right">Pagado</TableCell>
-                      <TableCell align="right">Saldo</TableCell>
-                      <TableCell>Estado</TableCell>
+                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>ID AFIP</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Fecha</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Total</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Pagado</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Saldo</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Estado</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {invoices.map(inv => (
-                      <TableRow key={inv.id}>
-                        <TableCell>{inv.number || inv.id}</TableCell>
-                        <TableCell>{inv.date}</TableCell>
-                        <TableCell align="right">{formatCurrency(inv.total_amount, false)}</TableCell>
-                        <TableCell align="right">{formatCurrency(inv.paid_amount, false)}</TableCell>
-                        <TableCell align="right">{formatCurrency(inv.balance, false)}</TableCell>
-                        <TableCell>
+                    {invoices.map((inv, index) => (
+                      <TableRow
+                        key={inv.id}
+                        sx={{
+                          '&:hover': { backgroundColor: 'grey.50' },
+                          borderBottom: index === invoices.length - 1 ? 'none' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        <TableCell sx={{ py: 2.5 }}>{inv.id_afip || '-'}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{formatDate(inv.date)}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.total_amount, false)}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.paid_amount, false)}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.balance, false)}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>
                           <Chip size="small" label={inv.status === 'PAID' ? 'Pagada' : inv.status === 'PARTIAL_PAID' ? 'Parcial' : 'Nueva'} color={inv.status === 'PAID' ? 'success' : inv.status === 'PARTIAL_PAID' ? 'warning' : 'default'} />
                         </TableCell>
                       </TableRow>
@@ -509,37 +524,42 @@ function CustomerDetail() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow>
-                      <TableCell>Marca</TableCell>
-                      <TableCell>Modelo</TableCell>
-                      <TableCell>Año</TableCell>
-                      <TableCell>Patente</TableCell>
-                      <TableCell>KM</TableCell>
-                      <TableCell align="center">Acciones</TableCell>
+                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Marca</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Modelo</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Año</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Patente</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>KM</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredVehicles.map((vehicle) => (
-                      <TableRow key={vehicle.id}>
-                        <TableCell>{vehicle.brand}</TableCell>
-                        <TableCell>{vehicle.model}</TableCell>
-                        <TableCell>{vehicle.year || "-"}</TableCell>
-                        <TableCell>{vehicle.plate || "-"}</TableCell>
-                        <TableCell>{vehicle.current_km || 0}</TableCell>
-                        <TableCell align="center">
-                          <IconButton
-                            onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                            title="Ver Detalle"
-                          >
-                            <ViewIcon />
-                          </IconButton>
-                          <IconButton
-                            color="secondary"
-                            onClick={() => navigate(`/work-orders/new?customer_id=${id}&vehicle_id=${vehicle.id}`)}
-                            title="Nuevo Remito"
-                          >
-                            <WorkOrderIcon />
-                          </IconButton>
+                    {filteredVehicles.map((vehicle, index) => (
+                      <TableRow
+                        key={vehicle.id}
+                        sx={{
+                          '&:hover': { backgroundColor: 'grey.50' },
+                          borderBottom: index === filteredVehicles.length - 1 ? 'none' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.brand}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.model}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.year || "-"}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.plate || "-"}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.current_km || 0}</TableCell>
+                        <TableCell align="center" sx={{ py: 2.5 }}>
+                          <Box display="flex" gap={1} justifyContent="center">
+                            <TableActionIconButton
+                              kind="access"
+                              onClick={() => navigate(`/vehicles/${vehicle.id}`)}
+                              ariaLabel={`Abrir vehículo ${vehicle.brand} ${vehicle.model}`}
+                            />
+                            <TableActionIconButton
+                              kind="workorder"
+                              onClick={() => navigate(`/work-orders/new?customer_id=${id}&vehicle_id=${vehicle.id}`)}
+                              ariaLabel={`Crear remito para vehículo ${vehicle.brand} ${vehicle.model}`}
+                            />
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -576,23 +596,29 @@ function CustomerDetail() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow>
-                      <TableCell>N° Remito</TableCell>
-                      <TableCell>Fecha</TableCell>
-                      <TableCell>Estado</TableCell>
-                      <TableCell>Descripción</TableCell>
-                      <TableCell>Total</TableCell>
-                      <TableCell align="center">Acciones</TableCell>
+                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>N° Remito</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Patente</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Fecha</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Estado</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>Descripción</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Monto</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {workOrders.map((workOrder) => (
-                      <TableRow key={workOrder.id}>
-                        <TableCell>#{workOrder.id}</TableCell>
-                        <TableCell>
-                          {new Date(workOrder.open_date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
+                    {workOrders.map((workOrder, index) => (
+                      <TableRow
+                        key={workOrder.id}
+                        sx={{
+                          '&:hover': { backgroundColor: 'grey.50' },
+                          borderBottom: index === workOrders.length - 1 ? 'none' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        <TableCell sx={{ py: 2.5 }}>{workOrder.external_id || '-'}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{getWorkOrderPlate(workOrder.vehicle_id)}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>
                           <Chip
                             label={workOrder.status === 'OPEN' ? 'Abierta' : 
                                    workOrder.status === 'IN_PROGRESS' ? 'En Progreso' :
@@ -607,17 +633,18 @@ function CustomerDetail() {
                             size="small"
                           />
                         </TableCell>
-                        <TableCell>{workOrder.description || "-"}</TableCell>
-                        <TableCell>{formatCurrency(workOrder.final_total || 0, false)}</TableCell>
-                        <TableCell align="center">
-                          <Button
-                            variant="contained"
-                            size="small"
+                        <TableCell sx={{ py: 2.5 }}>{workOrder.description || "-"}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
+                          {getWorkOrderAmount(workOrder) !== null
+                            ? formatCurrency(getWorkOrderAmount(workOrder), false)
+                            : '-'}
+                        </TableCell>
+                        <TableCell align="center" sx={{ py: 2.5 }}>
+                          <TableActionIconButton
+                            kind="access"
                             onClick={() => navigate(`/work-orders/${workOrder.id}/edit`)}
-                            sx={{ px: 3 }}
-                          >
-                            Acceder
-                          </Button>
+                            ariaLabel={`Abrir remito ${workOrder.external_id || workOrder.id}`}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -629,49 +656,35 @@ function CustomerDetail() {
         </Card>
 
         {/* Dialog Agregar Vehículo */}
-        <Dialog
+        <StyledDialog
           open={vehicleDialog}
           onClose={() => setVehicleDialog(false)}
           maxWidth="md"
-          fullWidth
-          PaperProps={{
-            sx: {
-              mt: 3,
-              borderRadius: 3,
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            },
-          }}
+          title="Agregar Vehículo"
+          subtitle="Completa los datos del nuevo vehículo"
+          actions={(
+            <>
+              <Button
+                onClick={() => setVehicleDialog(false)}
+                variant="outlined"
+                sx={{ mr: 1 }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCreateVehicle}
+                variant="contained"
+                startIcon={<SaveIcon />}
+                sx={{
+                  px: 3,
+                  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                }}
+              >
+                Guardar Vehículo
+              </Button>
+            </>
+          )}
         >
-          <DialogTitle
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              pb: 2,
-              borderBottom: "1px solid #e2e8f0",
-              background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-            }}
-          >
-            <Box>
-              <Typography variant="h5" fontWeight={700} color="primary">
-                🚗 Agregar Vehículo
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mt={0.5}>
-                Completa los datos del nuevo vehículo
-              </Typography>
-            </Box>
-            <IconButton
-              onClick={() => setVehicleDialog(false)}
-              sx={{
-                backgroundColor: "grey.100",
-                "&:hover": { backgroundColor: "grey.200" },
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </DialogTitle>
-
-          <DialogContent sx={{ mt: 3 }}>
   <Grid container spacing={2}>
     {/* Fila 1: Marca - Modelo - Año */}
     <Grid item xs={12} sm={4}>
@@ -758,36 +771,7 @@ function CustomerDetail() {
       />
     </Grid>
   </Grid>
-</DialogContent>
-
-          <DialogActions
-            sx={{
-              px: 3,
-              py: 2.5,
-              borderTop: "1px solid #e2e8f0",
-              background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-            }}
-          >
-            <Button
-              onClick={() => setVehicleDialog(false)}
-              variant="outlined"
-              sx={{ mr: 1 }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleCreateVehicle}
-              variant="contained"
-              startIcon={<SaveIcon />}
-              sx={{
-                px: 3,
-                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-              }}
-            >
-              Guardar Vehículo
-            </Button>
-          </DialogActions>
-        </Dialog>
+</StyledDialog>
 
 
     </PageLayout>

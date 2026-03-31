@@ -7,7 +7,9 @@ import {
   Alert,
   Grid,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Typography,
+  Container
 } from '@mui/material'
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
 import { warehouseService } from '../services/api'
@@ -109,47 +111,77 @@ function WarehouseForm() {
           </Button>
         ]}
       >
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+        <Container maxWidth="sm" disableGutters>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Nombre"
-              name="name"
-              value={warehouse.name}
-              onChange={handleChange}
-              required
-            />
+          <Grid container spacing={2.5}>
+            {/* IDENTIFICACIÓN */}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+                Identificación
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nombre"
+                name="name"
+                value={warehouse.name}
+                onChange={handleChange}
+                required
+                variant="outlined"
+                size="small"
+              />
+            </Grid>
+
+            {/* COMPLEMENTARIO */}
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+                Complementario
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Descripción"
+                name="description"
+                value={warehouse.description}
+                onChange={handleChange}
+                multiline
+                rows={3}
+                variant="outlined"
+              />
+            </Grid>
+
+            {/* ESTADO (solo en edición) */}
+            {isEdit && (
+              <>
+                <Grid item xs={12} sx={{ mt: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
+                    Estado
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={warehouse.is_active}
+                        onChange={handleChange}
+                        name="is_active"
+                      />
+                    }
+                    label={warehouse.is_active ? 'Activo' : 'Inactivo'}
+                    sx={{ display: 'flex', alignItems: 'center' }}
+                  />
+                </Grid>
+              </>
+            )}
           </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={warehouse.is_active}
-                  onChange={handleChange}
-                  name="is_active"
-                />
-              }
-              label={warehouse.is_active ? 'Activo' : 'Inactivo'}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Descripción"
-              name="description"
-              value={warehouse.description}
-              onChange={handleChange}
-              multiline
-              rows={3}
-            />
-          </Grid>
-        </Grid>
+        </Container>
       </FormCard>
     </Box>
   )

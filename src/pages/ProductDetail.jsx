@@ -85,9 +85,6 @@ function ProductDetail() {
             <Typography color="text.secondary" gutterBottom>
               Código: {product.code || '-'}
             </Typography>
-            <Typography color="text.secondary" gutterBottom>
-              Tipo: {product.type}
-            </Typography>
 
             {product.description && (
               <Typography sx={{ mt: 2 }}>

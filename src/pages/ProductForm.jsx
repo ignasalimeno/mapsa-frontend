@@ -8,10 +8,7 @@ import {
   Grid,
   MenuItem,
   Typography,
-  Paper,
-  Stack,
-  Autocomplete,
-  Chip
+  Autocomplete
 } from '@mui/material'
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
 import { itemService, tagService } from '../services/api'
@@ -182,163 +179,151 @@ function ProductForm() {
         )}
         
         <Grid container spacing={3}>
-          {/* Información Básica */}
+          {/* INFORMACIÓN */}
           <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom>
-              Información Básica
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: 'text.primary' }}>
+              Información
             </Typography>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="Código"
-              name="code"
-              value={product.code}
-              onChange={handleChange}
-              variant="outlined"
-              placeholder="Ej: PROD-001"
-            />
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="Nombre"
-              name="name"
-              value={product.name}
-              onChange={handleChange}
-              required
-              variant="outlined"
-            />
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              select
-              label="Tipo"
-              name="type"
-              value={product.type}
-              onChange={handleChange}
-              required
-            >
-              <MenuItem value="PRODUCT">Producto</MenuItem>
-              <MenuItem value="SERVICE">Servicio</MenuItem>
-              <MenuItem value="EXTRA_CHARGE">Gasto Extra</MenuItem>
-            </TextField>
-          </Grid>
-          
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Descripción"
-              name="description"
-              value={product.description}
-              onChange={handleChange}
-              multiline
-              rows={2}
-              variant="outlined"
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Código"
+                  name="code"
+                  value={product.code}
+                  onChange={handleChange}
+                  variant="outlined"
+                  placeholder="PROD-001"
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nombre"
+                  name="name"
+                  value={product.name}
+                  onChange={handleChange}
+                  required
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      fontWeight: 500
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Descripción"
+                  name="description"
+                  value={product.description}
+                  onChange={handleChange}
+                  multiline
+                  rows={3}
+                  variant="outlined"
+                  placeholder="Detalles del producto..."
+                />
+              </Grid>
+            </Grid>
           </Grid>
 
-          {/* Precios */}
+          {/* PRECIOS */}
           <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: 'text.primary' }}>
               Precios
             </Typography>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="Precio de Compra"
-              name="purchase_price"
-              type="number"
-              value={product.purchase_price}
-              onChange={handleChange}
-              variant="outlined"
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
-              }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="Precio de Venta"
-              name="sale_price"
-              type="number"
-              value={product.sale_price}
-              onChange={handleChange}
-              required
-              variant="outlined"
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
-              }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="IVA %"
-              name="iva_rate"
-              type="number"
-              value={product.iva_rate}
-              onChange={handleChange}
-              variant="outlined"
-              InputProps={{
-                endAdornment: <Typography>%</Typography>
-              }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="Unidad"
-              name="unit"
-              value={product.unit}
-              onChange={handleChange}
-              variant="outlined"
-              placeholder="Ej: unidad, kg, litro"
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Costo"
+                  name="purchase_price"
+                  type="number"
+                  value={product.purchase_price}
+                  onChange={handleChange}
+                  variant="outlined"
+                  size="small"
+                  placeholder="0.00"
+                  InputProps={{
+                    startAdornment: <Box sx={{ mr: 1, color: 'text.secondary', fontSize: '0.9rem' }}>$</Box>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Venta"
+                  name="sale_price"
+                  type="number"
+                  value={product.sale_price}
+                  onChange={handleChange}
+                  required
+                  variant="outlined"
+                  size="small"
+                  placeholder="0.00"
+                  InputProps={{
+                    startAdornment: <Box sx={{ mr: 1, color: 'text.secondary', fontSize: '0.9rem', fontWeight: 600 }}>$</Box>
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-input': {
+                      fontWeight: 600
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="IVA"
+                  name="iva_rate"
+                  type="number"
+                  value={product.iva_rate}
+                  onChange={handleChange}
+                  variant="outlined"
+                  size="small"
+                  placeholder="21"
+                  InputProps={{
+                    endAdornment: <Box sx={{ ml: 1, color: 'text.secondary', fontSize: '0.9rem' }}>%</Box>
+                  }}
+                />
+              </Grid>
+            </Grid>
           </Grid>
 
-          {/* Tags */}
+          {/* ETIQUETAS */}
           <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: 'text.primary' }}>
               Etiquetas
             </Typography>
-          </Grid>
-          
-          <Grid item xs={12}>
-            <Autocomplete
-              multiple
-              options={availableTags}
-              getOptionLabel={(option) => option.name}
-              value={selectedTags}
-              onChange={(event, newValue) => setSelectedTags(newValue)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  variant="outlined"
-                  label="Tags"
-                  placeholder="Selecciona tags"
-                />
-              )}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <TagChip
-                    key={option.id}
-                    tag={option}
-                    {...getTagProps({ index })}
+            <Grid item xs={12} sm={4}>
+              <Autocomplete
+                multiple
+                options={availableTags}
+                getOptionLabel={(option) => option.name}
+                value={selectedTags}
+                onChange={(event, newValue) => setSelectedTags(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    variant="outlined"
+                    placeholder="Busca y agrega tags..."
+                    size="small"
                   />
-                ))
-              }
-            />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <TagChip
+                      key={option.id}
+                      tag={option}
+                      {...getTagProps({ index })}
+                    />
+                  ))
+                }
+              />
+            </Grid>
           </Grid>
         </Grid>
       </FormCard>
