@@ -7,12 +7,64 @@ import {
   Alert,
   Grid,
   Typography,
-  Container
+  Divider,
+  Paper,
+  Stack
 } from '@mui/material'
-import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  ArrowBack as BackIcon,
+  LabelOutlined,
+  PaletteOutlined,
+  Notes
+} from '@mui/icons-material'
 import { tagService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import FormCard from '../components/FormCard'
+
+const DEFAULT_TAG_COLOR = '#2563eb'
+
+function normalizeHexColor(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return DEFAULT_TAG_COLOR
+
+  const withHash = raw.startsWith('#') ? raw : `#${raw}`
+  return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toLowerCase() : DEFAULT_TAG_COLOR
+}
+
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography
+        variant="overline"
+        sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
+
+function FormSection({ icon, label, children }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        borderRadius: 2,
+        borderColor: 'divider',
+        backgroundColor: 'background.paper'
+      }}
+    >
+      <SectionHeader icon={icon} label={label} />
+      <Divider sx={{ mb: 2 }} />
+      <Grid container spacing={2}>
+        {children}
+      </Grid>
+    </Paper>
+  )
+}
 
 function TagForm() {
   const { id } = useParams()
@@ -22,7 +74,7 @@ function TagForm() {
   const [tag, setTag] = useState({
     name: '',
     description: '',
-    color: '#2563eb'
+    color: DEFAULT_TAG_COLOR
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -35,7 +87,10 @@ function TagForm() {
     try {
       setLoading(true)
       const response = await tagService.getById(id)
-      setTag(response.data)
+      setTag({
+        ...response.data,
+        color: normalizeHexColor(response.data?.color)
+      })
     } catch (err) {
       setError('Error al cargar el tag')
     } finally {
@@ -44,9 +99,10 @@ function TagForm() {
   }
 
   const handleChange = (e) => {
+    const { name, value } = e.target
     setTag({
       ...tag,
-      [e.target.name]: e.target.value
+      [name]: name === 'color' ? normalizeHexColor(value) : value
     })
   }
 
@@ -72,20 +128,20 @@ function TagForm() {
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default', py: 3 }}>
       <LoadingOverlay open={loading} message="Guardando tag..." />
 
-      <Box display="flex" alignItems="center" mb={4} px={3}>
-        <Button
-          startIcon={<BackIcon />}
-          onClick={() => navigate('/tags')}
-          variant="outlined"
-          sx={{ mr: 3 }}
-        >
-          Volver
-        </Button>
-      </Box>
-
       <FormCard
         title={isEdit ? 'Editar Tag' : 'Nuevo Tag'}
         subtitle="Completa la información del tag"
+        headerLeft={
+          <Button
+            startIcon={<BackIcon />}
+            onClick={() => navigate('/tags')}
+            variant="text"
+            size="small"
+            sx={{ mb: 1 }}
+          >
+            Volver
+          </Button>
+        }
         actions={[
           <Button
             key="cancel"
@@ -108,21 +164,15 @@ function TagForm() {
           </Button>
         ]}
       >
-        <Container maxWidth="sm" disableGutters>
+        <Stack spacing={2.5}>
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ borderRadius: 2 }}>
               {error}
             </Alert>
           )}
 
-          <Grid container spacing={2.5}>
-            {/* IDENTIFICACIÓN */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-                Identificación
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
+          <FormSection icon={LabelOutlined} label="Identificación">
+            <Grid item xs={12} sm={8}>
               <TextField
                 fullWidth
                 label="Nombre"
@@ -134,39 +184,56 @@ function TagForm() {
                 size="small"
               />
             </Grid>
+          </FormSection>
 
-            {/* VISUAL */}
-            <Grid item xs={12} sx={{ mt: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-                Visual
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
+          <FormSection icon={PaletteOutlined} label="Visual">
+            <Grid item xs={12} sm={5}>
               <TextField
                 fullWidth
-                label="Color"
+                label="Código de color"
                 name="color"
-                type="color"
                 value={tag.color}
                 onChange={handleChange}
                 variant="outlined"
                 size="small"
-                sx={{ 
-                  '& input[type="color"]': { 
-                    height: '52px',
-                    cursor: 'pointer',
-                    borderRadius: '4px'
-                  }
-                }}
+                placeholder="#2563eb"
               />
             </Grid>
-
-            {/* COMPLEMENTARIO */}
-            <Grid item xs={12} sx={{ mt: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-                Complementario
-              </Typography>
+            <Grid item xs={12} sm={7}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Box
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    backgroundColor: tag.color
+                  }}
+                />
+                <Box
+                  component="input"
+                  type="color"
+                  name="color"
+                  value={tag.color}
+                  onChange={handleChange}
+                  sx={{
+                    width: 64,
+                    height: 38,
+                    p: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer'
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  Vista previa: {tag.color.toUpperCase()}
+                </Typography>
+              </Stack>
             </Grid>
+          </FormSection>
+
+          <FormSection icon={Notes} label="Complementario">
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -179,8 +246,8 @@ function TagForm() {
                 variant="outlined"
               />
             </Grid>
-          </Grid>
-        </Container>
+          </FormSection>
+        </Stack>
       </FormCard>
     </Box>
   )

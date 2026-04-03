@@ -11,39 +11,67 @@ import {
   InputLabel,
   Select,
   Typography,
-  Container
+  Divider,
+  Paper,
+  Stack,
+  Chip,
 } from '@mui/material'
-import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  ArrowBack as BackIcon,
+  PersonOutline,
+  ReceiptLong,
+  ContactPhone,
+  LocationOn,
+  Notes,
+} from '@mui/icons-material'
 import { customerService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import FormCard from '../components/FormCard'
 
 const PROVINCES = [
-  'Buenos Aires',
-  'CABA',
-  'Catamarca',
-  'Chaco',
-  'Chubut',
-  'Cordoba',
-  'Corrientes',
-  'Entre Rios',
-  'Formosa',
-  'Jujuy',
-  'La Pampa',
-  'La Rioja',
-  'Mendoza',
-  'Misiones',
-  'Neuquen',
-  'Rio Negro',
-  'Salta',
-  'San Juan',
-  'San Luis',
-  'Santa Cruz',
-  'Santa Fe',
-  'Santiago del Estero',
-  'Tierra del Fuego',
-  'Tucuman',
+  'Buenos Aires', 'CABA', 'Catamarca', 'Chaco', 'Chubut',
+  'Cordoba', 'Corrientes', 'Entre Rios', 'Formosa', 'Jujuy',
+  'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquen',
+  'Rio Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz',
+  'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucuman',
 ]
+
+// --- Reusable section header component ---
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography
+        variant="overline"
+        sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
+
+// --- Reusable section card ---
+function FormSection({ icon, label, children }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        borderRadius: 2,
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
+      }}
+    >
+      <SectionHeader icon={icon} label={label} />
+      <Divider sx={{ mb: 2 }} />
+      <Grid container spacing={2}>
+        {children}
+      </Grid>
+    </Paper>
+  )
+}
 
 function CustomerForm() {
   const [customer, setCustomer] = useState({
@@ -58,7 +86,7 @@ function CustomerForm() {
     notes: '',
     cuit: '',
     tax_condition: 'CONSUMIDOR_FINAL',
-    contact: ''
+    contact: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -70,21 +98,17 @@ function CustomerForm() {
         const response = await customerService.getNextNumber()
         setCustomer(prev => ({
           ...prev,
-          customer_number: response.data?.next_customer_number || ''
+          customer_number: response.data?.next_customer_number || '',
         }))
       } catch (err) {
         console.error('Error loading next customer number:', err)
       }
     }
-
     loadNextNumber()
   }, [])
 
   const handleChange = (e) => {
-    setCustomer({
-      ...customer,
-      [e.target.name]: e.target.value
-    })
+    setCustomer({ ...customer, [e.target.name]: e.target.value })
   }
 
   const handleSubmit = async (e) => {
@@ -92,12 +116,9 @@ function CustomerForm() {
     try {
       setLoading(true)
       setError(null)
-      console.log('Enviando cliente:', customer)
-      const response = await customerService.create(customer)
-      console.log('Respuesta:', response)
+      await customerService.create(customer)
       navigate('/customers')
     } catch (err) {
-      console.error('Error completo:', err)
       const errorMessage = err.response?.data?.detail || err.message || 'Error al crear cliente'
       setError(`Error al crear cliente: ${errorMessage}`)
     } finally {
@@ -105,24 +126,31 @@ function CustomerForm() {
     }
   }
 
+  const fieldProps = {
+    fullWidth: true,
+    variant: 'outlined',
+    size: 'small',
+    onChange: handleChange,
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default', py: 3 }}>
       <LoadingOverlay open={loading} message="Guardando cliente..." />
-      
-      <Box display="flex" alignItems="center" mb={4} px={3}>
-        <Button
-          startIcon={<BackIcon />}
-          onClick={() => navigate('/customers')}
-          variant="outlined"
-          sx={{ mr: 3 }}
-        >
-          Volver
-        </Button>
-      </Box>
 
       <FormCard
         title="Nuevo Cliente"
-        subtitle="Completa la información del cliente para agregarlo al sistema"
+        subtitle="Completá la información del cliente para agregarlo al sistema"
+        headerLeft={
+          <Button
+            startIcon={<BackIcon />}
+            onClick={() => navigate('/customers')}
+            variant="text"
+            size="small"
+            sx={{ mb: 1 }}
+          >
+            Volver
+          </Button>
+        }
         actions={[
           <Button
             key="cancel"
@@ -142,216 +170,180 @@ function CustomerForm() {
             size="large"
           >
             Guardar Cliente
-          </Button>
+          </Button>,
         ]}
       >
-        <Container maxWidth="sm" disableGutters>
+        {/* Remove the inner Container — let FormCard control the width */}
+        <Stack spacing={2.5}>
           {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 2,
-                '& .MuiAlert-message': { fontWeight: 500 }
-              }}
+            <Alert
+              severity="error"
+              sx={{ borderRadius: 2, '& .MuiAlert-message': { fontWeight: 500 } }}
             >
               {error}
             </Alert>
           )}
-          
-          <Grid container spacing={2.5}>
+
           {/* IDENTIFICACIÓN */}
-          <Grid item xs={12}>
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-              Identificación
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Número de cliente"
-              name="customer_number"
-              type="number"
-              value={customer.customer_number}
-              onChange={handleChange}
-              required
-              variant="outlined"
-              size="small"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Nombre completo"
-              name="name"
-              value={customer.name}
-              onChange={handleChange}
-              required
-              variant="outlined"
-              size="small"
-              sx={{ '& .MuiInputLabel-asterisk': { color: 'error.main' } }}
-            />
-          </Grid>
+          <FormSection icon={PersonOutline} label="Identificación">
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="Número de cliente"
+                name="customer_number"
+                type="number"
+                value={customer.customer_number}
+                required
+                InputProps={{
+                  startAdornment: (
+                    <Chip label="#" size="small" sx={{ mr: 0.5, height: 20, fontSize: 11 }} />
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="Nombre completo"
+                name="name"
+                value={customer.name}
+                required
+                placeholder="Razón social o nombre"
+              />
+            </Grid>
+          </FormSection>
 
           {/* FISCAL */}
-          <Grid item xs={12} sx={{ mt: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-              Fiscal
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Número de documento"
-              name="document_number"
-              value={customer.document_number}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="CUIT"
-              name="cuit"
-              value={customer.cuit}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-              placeholder="20-12345678-9"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth variant="outlined" size="small">
-              <InputLabel id="tax-condition-label">Condición frente al IVA</InputLabel>
-              <Select
-                labelId="tax-condition-label"
-                name="tax_condition"
-                value={customer.tax_condition}
-                onChange={handleChange}
-                label="Condición frente al IVA"
-              >
-                <MenuItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</MenuItem>
-                <MenuItem value="CONSUMIDOR_FINAL">Consumidor Final</MenuItem>
-                <MenuItem value="EXENTO">Exento</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
+          <FormSection icon={ReceiptLong} label="Fiscal">
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="Número de documento"
+                name="document_number"
+                value={customer.document_number}
+                placeholder="12345678"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="CUIT"
+                name="cuit"
+                value={customer.cuit}
+                placeholder="20-12345678-9"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth variant="outlined" size="small">
+                <InputLabel>Condición frente al IVA</InputLabel>
+                <Select
+                  name="tax_condition"
+                  value={customer.tax_condition}
+                  onChange={handleChange}
+                  label="Condición frente al IVA"
+                >
+                  <MenuItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</MenuItem>
+                  <MenuItem value="CONSUMIDOR_FINAL">Consumidor Final</MenuItem>
+                  <MenuItem value="EXENTO">Exento</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </FormSection>
+
           {/* CONTACTO */}
-          <Grid item xs={12} sx={{ mt: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-              Contacto
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Persona de contacto"
-              name="contact"
-              value={customer.contact}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-              placeholder="Nombre de la persona"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Teléfono"
-              name="phone"
-              value={customer.phone}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-              placeholder="+54 11 1234-5678"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Correo electrónico"
-              name="email"
-              type="email"
-              value={customer.email}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-              placeholder="cliente@email.com"
-            />
-          </Grid>
+          <FormSection icon={ContactPhone} label="Contacto">
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="Persona de contacto"
+                name="contact"
+                value={customer.contact}
+                placeholder="Nombre y apellido"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="Teléfono"
+                name="phone"
+                value={customer.phone}
+                placeholder="+54 11 1234-5678"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                {...fieldProps}
+                label="Correo electrónico"
+                name="email"
+                type="email"
+                value={customer.email}
+                placeholder="cliente@email.com"
+              />
+            </Grid>
+          </FormSection>
 
           {/* UBICACIÓN */}
-          <Grid item xs={12} sx={{ mt: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-              Ubicación
-            </Typography>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Dirección"
-              name="address"
-              value={customer.address}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-              placeholder="Calle, número, ciudad"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth variant="outlined" size="small">
-              <InputLabel id="province-label">Provincia</InputLabel>
-              <Select
-                labelId="province-label"
-                name="province"
-                value={customer.province}
-                onChange={handleChange}
-                label="Provincia"
-              >
-                <MenuItem value="">Seleccionar provincia</MenuItem>
-                {PROVINCES.map((province) => (
-                  <MenuItem key={province} value={province}>{province}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="CP"
-              name="postal_code"
-              value={customer.postal_code}
-              onChange={handleChange}
-              variant="outlined"
-              size="small"
-              placeholder="B1644"
-            />
-          </Grid>
+          <FormSection icon={LocationOn} label="Ubicación">
+            <Grid item xs={12}>
+              <TextField
+                {...fieldProps}
+                label="Dirección"
+                name="address"
+                value={customer.address}
+                placeholder="Calle, número, piso/dpto, ciudad"
+              />
+            </Grid>
+            <Grid item xs={12} sm={8}>
+              <FormControl fullWidth variant="outlined" size="small">
+                <InputLabel shrink>Provincia</InputLabel>
+                <Select
+                  name="province"
+                  value={customer.province}
+                  onChange={handleChange}
+                  label="Provincia"
+                  displayEmpty
+                  notched
+                  renderValue={(val) =>
+                    val ? val : <span style={{ color: '#9e9e9e' }}>Seleccioná una provincia</span>
+                  }
+                >
+                  {PROVINCES.map((p) => (
+                    <MenuItem key={p} value={p}>{p}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                {...fieldProps}
+                label="Código postal"
+                name="postal_code"
+                value={customer.postal_code}
+                placeholder="B1644"
+              />
+            </Grid>
+          </FormSection>
 
-          {/* COMPLEMENTARIO */}
-          <Grid item xs={12} sx={{ mt: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-              Complementario
-            </Typography>
-          </Grid>
-          <Grid item xs={12}>
+          {/* NOTAS */}
+          <Paper
+            variant="outlined"
+            sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider', backgroundColor: 'background.paper' }}
+          >
+            <SectionHeader icon={Notes} label="Notas adicionales" />
+            <Divider sx={{ mb: 2 }} />
             <TextField
               fullWidth
-              label="Notas adicionales"
+              variant="outlined"
+              size="small"
               name="notes"
               multiline
-              rows={3}
+              rows={4}
               value={customer.notes}
               onChange={handleChange}
-              variant="outlined"
               placeholder="Información adicional sobre el cliente..."
             />
-          </Grid>
-          </Grid>
-        </Container>
+          </Paper>
+        </Stack>
       </FormCard>
     </Box>
   )

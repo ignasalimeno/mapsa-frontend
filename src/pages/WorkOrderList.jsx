@@ -139,7 +139,8 @@ function WorkOrderList() {
 
   const getWorkOrderAmount = (workOrder) => {
     if (workOrder.status !== 'INVOICED') return null
-    return Number(workOrder.final_total || 0)
+    if (workOrder.invoice_total != null) return Number(workOrder.invoice_total || 0)
+    return Number(workOrder.final_total || 0) + Number(workOrder.total_iva || 0)
   }
 
   const getSortableValue = (workOrder, key) => {

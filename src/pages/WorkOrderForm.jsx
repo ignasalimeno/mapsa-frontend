@@ -15,24 +15,65 @@ import {
   TableRow,
   Paper,
   TextField,
-  FormControl,
   InputLabel,
   Select,
   MenuItem,
   IconButton,
   Chip,
   Autocomplete,
-  Container
+  Container,
+  Stack,
+  Divider,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Save as SaveIcon,
+  ReceiptLong,
+  ContactPhone,
+  DirectionsCar,
 } from "@mui/icons-material";
-import { LoadingOverlay, PageLayout, StyledDialog } from '../components';
+import { LoadingOverlay, PageLayout, StyledDialog, TagMultiSelect } from '../components';
 import { customerService, vehicleService, itemService, tagService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { useNotify } from '../context';
+
+// --- Reusable section header component ---
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography
+        variant="overline"
+        sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
+
+// --- Reusable section card ---
+function FormSection({ icon, label, children }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: 1.5,
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
+        width: '100%',
+      }}
+    >
+      <SectionHeader icon={icon} label={label} />
+      <Divider sx={{ mb: 1.5 }} />
+      <Grid container spacing={1.5}>
+        {children}
+      </Grid>
+    </Paper>
+  )
+}
 
 function WorkOrderForm() {
   const navigate = useNavigate();
@@ -494,137 +535,111 @@ function WorkOrderForm() {
       }
     >
       <LoadingOverlay open={loading} message={isEditing ? 'Guardando remito...' : 'Procesando remito...'} />
-      {/* Cabecera - Datos del Cliente y Vehículo */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3, mb: 3 }}>
-            Información General
-          </Typography>
-          
-          <Container maxWidth="md" disableGutters>
-            <Grid container spacing={2.5}>
-              {/* Selección de Cliente */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  label="Cliente"
-                  value={workOrder.id_customer}
-                  onChange={(e) => {
-                    setWorkOrder({...workOrder, id_customer: e.target.value, id_vehicle: ''});
-                    setSelectedVehicle(null);
-                  }}
-                  required
-                  disabled={isEditing}
-                  fullWidth
-                  size="small"
-                >
-                  <MenuItem value="">Seleccionar cliente...</MenuItem>
-                  {customers.map((customer) => (
-                    <MenuItem key={customer.id} value={customer.id}>
-                      {customer.name} - {customer.document_number}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                {selectedCustomer && (
-                  <Box mt={1.5}>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Teléfono:</strong> {selectedCustomer.phone || 'N/A'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Email:</strong> {selectedCustomer.email || 'N/A'}
-                    </Typography>
-                  </Box>
-                )}
-              </Grid>
+      
+      {/* Cabecera Compacta */}
+      <Stack spacing={2} sx={{ mb: 3, width: '100%' }}>
+        
+        {/* CLIENTE Y VEHÍCULO */}
+        <FormSection icon={ContactPhone} label="Cliente y Vehículo">
+          <Grid item xs={12} sx={{ width: '100%' }}>
+            <TextField
+              select
+              label="Cliente"
+              value={workOrder.id_customer}
+              onChange={(e) => {
+                setWorkOrder({...workOrder, id_customer: e.target.value, id_vehicle: ''});
+                setSelectedVehicle(null);
+              }}
+              required
+              disabled={isEditing}
+              fullWidth
+              size="small"
+            >
+              <MenuItem value="">Seleccionar cliente...</MenuItem>
+              {customers.map((customer) => (
+                <MenuItem key={customer.id} value={customer.id}>
+                  {customer.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sx={{ width: '100%' }}>
+            <TextField
+              select
+              label="Vehículo"
+              value={workOrder.id_vehicle}
+              onChange={(e) => setWorkOrder({...workOrder, id_vehicle: e.target.value})}
+              disabled={!workOrder.id_customer || isEditing}
+              fullWidth
+              size="small"
+            >
+              <MenuItem value="">Sin vehículo</MenuItem>
+              {vehicles.map((vehicle) => (
+                <MenuItem key={vehicle.id} value={vehicle.id}>
+                  {vehicle.brand} {vehicle.model} - {vehicle.plate}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        </FormSection>
 
-              {/* Selección de Vehículo */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  label="Vehículo"
-                  value={workOrder.id_vehicle}
-                  onChange={(e) => setWorkOrder({...workOrder, id_vehicle: e.target.value})}
-                  disabled={!workOrder.id_customer || isEditing}
-                  fullWidth
-                  size="small"
-                >
-                  <MenuItem value="">Sin vehículo</MenuItem>
-                  {vehicles.map((vehicle) => (
-                    <MenuItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.brand} {vehicle.model} - {vehicle.plate}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                {selectedVehicle && (
-                  <Box mt={1.5}>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Año:</strong> {selectedVehicle.year || 'N/A'} | 
-                      <strong> KM:</strong> {formatNumber(selectedVehicle.current_km) || '0'}
-                    </Typography>
-                  </Box>
-                )}
-              </Grid>
-
-              {/* Depósito */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  label="Depósito"
-                  value={workOrder.id_warehouse}
-                  onChange={(e) => setWorkOrder({ ...workOrder, id_warehouse: e.target.value })}
-                  required
-                  fullWidth
-                  size="small"
-                >
-                  {warehouses.map((warehouse) => (
-                    <MenuItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              {/* N° de Remito */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="N° de Remito"
-                  value={workOrder.external_id}
-                  onChange={(e) => setWorkOrder({...workOrder, external_id: e.target.value})}
-                  required
-                  fullWidth
-                  size="small"
-                  placeholder="000123"
-                />
-              </Grid>
-
-              {/* KM al ingreso */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="KM al ingreso"
-                  type="number"
-                  value={workOrder.km_at_entry}
-                  onChange={(e) => setWorkOrder({...workOrder, km_at_entry: e.target.value})}
-                  fullWidth
-                  size="small"
-                />
-              </Grid>
-
-              {/* Descripción del trabajo */}
-              <Grid item xs={12}>
-                <TextField
-                  label="Descripción del trabajo"
-                  value={workOrder.description}
-                  onChange={(e) => setWorkOrder({...workOrder, description: e.target.value})}
-                  fullWidth
-                  multiline
-                  rows={2}
-                  placeholder="Detalles del trabajo a realizar..."
-                />
-              </Grid>
-            </Grid>
-          </Container>
-        </CardContent>
-      </Card>
+        {/* REMITO E DEPÓSITO */}
+        <FormSection icon={ReceiptLong} label="Remito y Depósito">
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="N° de Remito"
+              value={workOrder.external_id}
+              onChange={(e) => setWorkOrder({...workOrder, external_id: e.target.value})}
+              required
+              fullWidth
+              size="small"
+              placeholder="000123"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              select
+              label="Depósito"
+              value={workOrder.id_warehouse}
+              onChange={(e) => setWorkOrder({ ...workOrder, id_warehouse: e.target.value })}
+              required
+              fullWidth
+              size="small"
+            >
+              {warehouses.map((warehouse) => (
+                <MenuItem key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="KM al ingreso"
+              type="number"
+              value={workOrder.km_at_entry}
+              onChange={(e) => setWorkOrder({...workOrder, km_at_entry: e.target.value})}
+              fullWidth
+              size="small"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Descripción del trabajo"
+              value={workOrder.description}
+              onChange={(e) => setWorkOrder({...workOrder, description: e.target.value})}
+              fullWidth
+              multiline
+              rows={2}
+              size="small"
+              placeholder="Detalles del trabajo a realizar..."
+            />
+          </Grid>
+        </FormSection>
+        
+      </Stack>
 
       {/* Remito Modal */}
       <StyledDialog
@@ -749,48 +764,15 @@ function WorkOrderForm() {
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>Filtros</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <Select
-                    multiple
-                    value={itemFilterTags}
-                    onChange={(e) => setItemFilterTags(e.target.value)}
-                    displayEmpty
-                    renderValue={() => (
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Seleccione los tags.. 
-                      </Typography>
-                    )}
-                  >
-                    {tags.map((tag) => (
-                      <MenuItem key={tag.id} value={tag.id}>
-                        {tag.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <TagMultiSelect
+                  options={tags}
+                  value={itemFilterTags}
+                  onChange={setItemFilterTags}
+                  label="Tags"
+                  placeholder="Seleccione los tags..."
+                  sx={{ width: '100%' }}
+                />
               </Grid>
-              {itemFilterTags.length > 0 && (
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                    {itemFilterTags.map((tagId) => {
-                      const tag = tags.find(t => String(t.id) === String(tagId));
-                      return tag ? (
-                        <Chip
-                          key={tag.id}
-                          label={tag.name}
-                          onDelete={() => setItemFilterTags(itemFilterTags.filter(id => id !== tagId))}
-                          sx={{
-                            bgcolor: 'rgba(25, 118, 210, 0.15)',
-                            color: '#1976d2',
-                            height: '28px',
-                            fontWeight: 500,
-                          }}
-                        />
-                      ) : null;
-                    })}
-                  </Box>
-                </Grid>
-              )}
               <Grid item xs={12}>
                 <Button
                   variant="outlined"

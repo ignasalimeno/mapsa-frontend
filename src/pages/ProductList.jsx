@@ -17,11 +17,7 @@ import {
   Chip,
   Typography,
   InputAdornment,
-  Stack,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel
+  Stack
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -30,7 +26,7 @@ import {
 import { itemService, stockService, tagService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import StockBadge from '../components/StockBadge'
-import { PageLayout, TableActionIconButton } from '../components'
+import { PageLayout, TableActionIconButton, TagMultiSelect } from '../components'
 
 function ProductList() {
   const [products, setProducts] = useState([])
@@ -39,7 +35,7 @@ function ProductList() {
   const [tags, setTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterTag, setFilterTag] = useState('')
+  const [filterTags, setFilterTags] = useState([])
   const [order, setOrder] = useState('asc')
   const [orderBy, setOrderBy] = useState('name')
   const navigate = useNavigate()
@@ -100,7 +96,8 @@ function ProductList() {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.code && product.code.toLowerCase().includes(searchTerm.toLowerCase()))
     const tagList = productTags[product.id] || product.tags || []
-    const matchesTag = !filterTag || tagList.some(tag => String(tag.id) === String(filterTag))
+    const matchesTag = filterTags.length === 0 ||
+      tagList.some(tag => filterTags.map(String).includes(String(tag.id)))
     return matchesSearch && matchesTag
   })
 
@@ -198,19 +195,14 @@ function ProductList() {
               sx={{ flexGrow: 1 }}
             />
             
-            <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>Tag</InputLabel>
-              <Select
-                value={filterTag}
-                label="Tag"
-                onChange={(e) => setFilterTag(e.target.value)}
-              >
-                <MenuItem value="">Todos</MenuItem>
-                {tags.map(tag => (
-                  <MenuItem key={tag.id} value={tag.id}>{tag.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TagMultiSelect
+              options={tags}
+              value={filterTags}
+              onChange={setFilterTags}
+              label="Tags"
+              placeholder="Filtrar por tags"
+              sx={{ minWidth: 300 }}
+            />
           </Stack>
         </CardContent>
       </Card>

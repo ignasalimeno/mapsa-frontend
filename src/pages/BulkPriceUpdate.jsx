@@ -21,7 +21,6 @@ import {
   Chip,
   Alert,
   Stack,
-  IconButton,
   InputAdornment,
   Dialog,
   DialogTitle,
@@ -41,6 +40,7 @@ import {
 import { itemService, tagService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import TagChip from '../components/TagChip'
+import { TagMultiSelect } from '../components'
 
 function BulkPriceUpdate() {
   const navigate = useNavigate()
@@ -265,26 +265,13 @@ function BulkPriceUpdate() {
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Tags</InputLabel>
-              <Select
-                multiple
-                value={filterTags}
-                onChange={(e) => setFilterTags(e.target.value)}
-                label="Tags"
-                renderValue={() => (
-                  filterTags.length > 0
-                    ? `${filterTags.length} tag${filterTags.length !== 1 ? 's' : ''} seleccionado${filterTags.length !== 1 ? 's' : ''}`
-                    : 'Seleccionar tags'
-                )}
-              >
-                {tags.map((tag) => (
-                  <MenuItem key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TagMultiSelect
+              options={tags}
+              value={filterTags}
+              onChange={setFilterTags}
+              label="Tags"
+              placeholder="Filtrar por tags"
+            />
           </Grid>
 
           <Grid item xs={12} md={2}>
@@ -298,28 +285,6 @@ function BulkPriceUpdate() {
             </Button>
           </Grid>
         </Grid>
-
-        {filterTags.length > 0 && (
-          <Box sx={{ mt: 2, mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Tags seleccionados:
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {filterTags.map((tagId) => {
-                const tag = tags.find((currentTag) => currentTag.id === tagId)
-                return (
-                  <Chip
-                    key={tagId}
-                    label={tag?.name}
-                    onDelete={() => setFilterTags(filterTags.filter((id) => id !== tagId))}
-                    color="primary"
-                    variant="outlined"
-                  />
-                )
-              })}
-            </Box>
-          </Box>
-        )}
 
         {selectedCount > 0 && (
           <Box mt={2}>

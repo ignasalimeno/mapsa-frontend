@@ -18,12 +18,16 @@ import {
   Chip,
   TextField,
   MenuItem,
+  Divider,
+  Stack,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
   AccountBalance as AccountIcon,
   Save as SaveIcon,
+  DirectionsCar,
+  Notes,
 } from "@mui/icons-material";
 import {
   customerService,
@@ -61,6 +65,20 @@ const PROVINCES = [
   'Tierra del Fuego',
   'Tucuman',
 ]
+
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography
+        variant="overline"
+        sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
 
 function CustomerDetail() {
   const { id } = useParams();
@@ -685,78 +703,88 @@ function CustomerDetail() {
             </>
           )}
         >
-  <Grid container spacing={2}>
-    {/* Fila 1: Marca - Modelo - Año */}
-    <Grid item xs={12} sm={4}>
-      <TextField
-        fullWidth
-        label="Marca"
-        value={newVehicle.brand}
-        onChange={(e) =>
-          setNewVehicle({ ...newVehicle, brand: e.target.value })
-        }
-        required
-        variant="outlined"
-      />
-    </Grid>
+  <Stack spacing={2.5}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+      <SectionHeader icon={DirectionsCar} label="Datos del vehículo" />
+      <Divider sx={{ mb: 2 }} />
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="Marca"
+            value={newVehicle.brand}
+            onChange={(e) =>
+              setNewVehicle({ ...newVehicle, brand: e.target.value })
+            }
+            required
+            variant="outlined"
+            size="small"
+          />
+        </Grid>
 
-    <Grid item xs={12} sm={4}>
-      <TextField
-        fullWidth
-        label="Modelo"
-        value={newVehicle.model}
-        onChange={(e) =>
-          setNewVehicle({ ...newVehicle, model: e.target.value })
-        }
-        required
-        variant="outlined"
-      />
-    </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="Modelo"
+            value={newVehicle.model}
+            onChange={(e) =>
+              setNewVehicle({ ...newVehicle, model: e.target.value })
+            }
+            required
+            variant="outlined"
+            size="small"
+          />
+        </Grid>
 
-    <Grid item xs={12} sm={4}>
-      <TextField
-        fullWidth
-        label="Año"
-        type="number"
-        value={newVehicle.year}
-        onChange={(e) =>
-          setNewVehicle({ ...newVehicle, year: e.target.value })
-        }
-        variant="outlined"
-        placeholder="2020"
-      />
-    </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="Año"
+            type="number"
+            value={newVehicle.year}
+            onChange={(e) =>
+              setNewVehicle({ ...newVehicle, year: e.target.value })
+            }
+            variant="outlined"
+            size="small"
+            placeholder="2020"
+          />
+        </Grid>
 
-    {/* Fila 2: Patente - KM */}
-    <Grid item xs={12} sm={6}>
-      <TextField
-        fullWidth
-        label="Patente"
-        value={newVehicle.plate}
-        onChange={(e) =>
-          setNewVehicle({ ...newVehicle, plate: e.target.value })
-        }
-        variant="outlined"
-        placeholder="ABC123"
-      />
-    </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Patente"
+            value={newVehicle.plate}
+            onChange={(e) =>
+              setNewVehicle({ ...newVehicle, plate: e.target.value })
+            }
+            variant="outlined"
+            size="small"
+            placeholder="ABC123"
+          />
+        </Grid>
 
-    <Grid item xs={12} sm={6}>
-      <TextField
-        fullWidth
-        label="Kilometraje actual"
-        type="number"
-        value={newVehicle.current_km}
-        onChange={(e) =>
-          setNewVehicle({ ...newVehicle, current_km: e.target.value })
-        }
-        variant="outlined"
-        placeholder="50000"
-      />
-    </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Kilometraje actual"
+            type="number"
+            value={newVehicle.current_km}
+            onChange={(e) =>
+              setNewVehicle({ ...newVehicle, current_km: e.target.value })
+            }
+            variant="outlined"
+            size="small"
+            placeholder="50000"
+          />
+        </Grid>
+      </Grid>
+    </Paper>
 
-    {/* Fila 3: Notas (ancho completo) */}
-    <Grid item xs={12}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+      <SectionHeader icon={Notes} label="Notas adicionales" />
+      <Divider sx={{ mb: 2 }} />
       <TextField
         fullWidth
         label="Notas adicionales"
@@ -767,10 +795,11 @@ function CustomerDetail() {
           setNewVehicle({ ...newVehicle, notes: e.target.value })
         }
         variant="outlined"
+        size="small"
         placeholder="Información adicional sobre el vehículo..."
       />
-    </Grid>
-  </Grid>
+    </Paper>
+  </Stack>
 </StyledDialog>
 
 

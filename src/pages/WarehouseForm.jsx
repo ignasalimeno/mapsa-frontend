@@ -9,12 +9,54 @@ import {
   Switch,
   FormControlLabel,
   Typography,
-  Container
+  Divider,
+  Paper,
+  Stack
 } from '@mui/material'
-import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  ArrowBack as BackIcon,
+  Warehouse,
+  Notes,
+  ToggleOn
+} from '@mui/icons-material'
 import { warehouseService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import FormCard from '../components/FormCard'
+
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography
+        variant="overline"
+        sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
+
+function FormSection({ icon, label, children }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        borderRadius: 2,
+        borderColor: 'divider',
+        backgroundColor: 'background.paper'
+      }}
+    >
+      <SectionHeader icon={icon} label={label} />
+      <Divider sx={{ mb: 2 }} />
+      <Grid container spacing={2}>
+        {children}
+      </Grid>
+    </Paper>
+  )
+}
 
 function WarehouseForm() {
   const { id } = useParams()
@@ -75,20 +117,20 @@ function WarehouseForm() {
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default', py: 3 }}>
       <LoadingOverlay open={loading} message="Guardando depósito..." />
 
-      <Box display="flex" alignItems="center" mb={4} px={3}>
-        <Button
-          startIcon={<BackIcon />}
-          onClick={() => navigate('/warehouses')}
-          variant="outlined"
-          sx={{ mr: 3 }}
-        >
-          Volver
-        </Button>
-      </Box>
-
       <FormCard
         title={isEdit ? 'Editar Depósito' : 'Nuevo Depósito'}
         subtitle="Completa la información del depósito"
+        headerLeft={
+          <Button
+            startIcon={<BackIcon />}
+            onClick={() => navigate('/warehouses')}
+            variant="text"
+            size="small"
+            sx={{ mb: 1 }}
+          >
+            Volver
+          </Button>
+        }
         actions={[
           <Button
             key="cancel"
@@ -111,20 +153,14 @@ function WarehouseForm() {
           </Button>
         ]}
       >
-        <Container maxWidth="sm" disableGutters>
+        <Stack spacing={2.5}>
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ borderRadius: 2 }}>
               {error}
             </Alert>
           )}
 
-          <Grid container spacing={2.5}>
-            {/* IDENTIFICACIÓN */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-                Identificación
-              </Typography>
-            </Grid>
+          <FormSection icon={Warehouse} label="Identificación">
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -137,13 +173,9 @@ function WarehouseForm() {
                 size="small"
               />
             </Grid>
+          </FormSection>
 
-            {/* COMPLEMENTARIO */}
-            <Grid item xs={12} sx={{ mt: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-                Complementario
-              </Typography>
-            </Grid>
+          <FormSection icon={Notes} label="Complementario">
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -156,32 +188,26 @@ function WarehouseForm() {
                 variant="outlined"
               />
             </Grid>
+          </FormSection>
 
-            {/* ESTADO (solo en edición) */}
-            {isEdit && (
-              <>
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
-                    Estado
-                  </Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={warehouse.is_active}
-                        onChange={handleChange}
-                        name="is_active"
-                      />
-                    }
-                    label={warehouse.is_active ? 'Activo' : 'Inactivo'}
-                    sx={{ display: 'flex', alignItems: 'center' }}
-                  />
-                </Grid>
-              </>
-            )}
-          </Grid>
-        </Container>
+          {isEdit && (
+            <FormSection icon={ToggleOn} label="Estado">
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={warehouse.is_active}
+                      onChange={handleChange}
+                      name="is_active"
+                    />
+                  }
+                  label={warehouse.is_active ? 'Activo' : 'Inactivo'}
+                  sx={{ display: 'flex', alignItems: 'center' }}
+                />
+              </Grid>
+            </FormSection>
+          )}
+        </Stack>
       </FormCard>
     </Box>
   )
