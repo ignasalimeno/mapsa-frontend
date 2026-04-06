@@ -24,10 +24,11 @@ import {
   DialogContent,
   DialogActions
 } from '@mui/material'
-import { Add as AddIcon } from '@mui/icons-material'
-import { accountService, customerService, invoiceService } from '../services/api'
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { accountService, customerService, invoicePaymentService, invoiceService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { PageLayout } from '../components'
+import { useNotify } from '../context'
 
 function AccountDetail() {
   const { id } = useParams()
@@ -40,14 +41,23 @@ function AccountDetail() {
   
   // Unified movement modal state
   const [movementModalOpen, setMovementModalOpen] = useState(false)
+  const [paymentLineModalOpen, setPaymentLineModalOpen] = useState(false)
+  const [editingPaymentLineIndex, setEditingPaymentLineIndex] = useState(null)
+  const [paymentLines, setPaymentLines] = useState([])
+  const [retentionTypes, setRetentionTypes] = useState([])
+  const [paymentLineForm, setPaymentLineForm] = useState({
+    method: 'CASH',
+    amount: '',
+    retention_type: '',
+    notes: '',
+    cheque_number: '',
+    bank: '',
+  })
   const [movementForm, setMovementForm] = useState({
     type: 'PAYMENT', // PAYMENT, DEBIT_NOTE, CREDIT_NOTE
     amount: '',
-    method: 'CASH', // CASH, TRANSFER, CHEQUE, ECHEQ
     date: new Date().toISOString().slice(0,10),
     description: '',
-    cheque_number: '',
-    bank: '',
     external_id: ''
   })
   const [allocations, setAllocations] = useState({})
@@ -55,10 +65,31 @@ function AccountDetail() {
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [attachments, setAttachments] = useState([])
   const [attachmentsLoading, setAttachmentsLoading] = useState(false)
+  const [deletePaymentModalOpen, setDeletePaymentModalOpen] = useState(false)
+  const [paymentToDelete, setPaymentToDelete] = useState(null)
+  const { success: notifySuccess, error: notifyError } = useNotify()
+
+  const invoiceStatusMap = {
+    NEW: { label: 'Pendiente', color: 'warning' },
+    PARTIAL_PAID: { label: 'Parcial', color: 'info' },
+    PAID: { label: 'Pagada', color: 'success' },
+    CANCELLED: { label: 'Anulada', color: 'error' },
+  }
 
   useEffect(() => {
     loadAccountData()
+    loadRetentionTypes()
   }, [id])
+
+  const loadRetentionTypes = async () => {
+    try {
+      const response = await invoicePaymentService.getRetentionTypes()
+      setRetentionTypes(response.data || [])
+    } catch (err) {
+      console.error('Error cargando tipos de retención:', err)
+      setRetentionTypes([])
+    }
+  }
 
   const loadAccountData = async () => {
     try {
@@ -105,9 +136,11 @@ function AccountDetail() {
     }
   }
 
+  const totalPaymentLines = paymentLines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
+
   // Auto-distribute amount across invoice balances (FIFO)
   const autoDistribute = () => {
-    const total = parseFloat(movementForm.amount || '0')
+    const total = parseFloat(totalPaymentLines || '0')
     if (!total || total <= 0 || invoices.length === 0) return
     let remaining = total
     const nextAlloc = {}
@@ -123,46 +156,203 @@ function AccountDetail() {
     setAllocations(nextAlloc)
   }
 
-  // Submit unified movement
-  const handleSubmitMovement = async () => {
+  const openPaymentLineModal = (line = null, index = null) => {
+    if (line) {
+      setEditingPaymentLineIndex(index)
+      setPaymentLineForm({
+        method: line.method,
+        amount: String(line.amount),
+        retention_type: line.retention_type || '',
+        notes: line.notes || '',
+        cheque_number: line.cheque_number || '',
+        bank: line.bank || '',
+      })
+    } else {
+      setEditingPaymentLineIndex(null)
+      setPaymentLineForm({
+        method: 'CASH',
+        amount: '',
+        retention_type: '',
+        notes: '',
+        cheque_number: '',
+        bank: '',
+      })
+    }
+    setPaymentLineModalOpen(true)
+  }
+
+  const closePaymentLineModal = () => {
+    setPaymentLineModalOpen(false)
+    setEditingPaymentLineIndex(null)
+  }
+
+  const addOrUpdatePaymentLine = () => {
+    const amount = Number(paymentLineForm.amount || 0)
+    if (!amount || amount <= 0) {
+      notifyError('Ingrese un monto válido para la forma de pago')
+      return
+    }
+
+    if (paymentLineForm.method === 'RETENTION' && !paymentLineForm.retention_type) {
+      notifyError('Seleccione un tipo de retención')
+      return
+    }
+
+    const nextLine = {
+      method: paymentLineForm.method,
+      amount,
+      retention_type: paymentLineForm.method === 'RETENTION' ? paymentLineForm.retention_type : '',
+      notes: paymentLineForm.notes || '',
+      cheque_number: paymentLineForm.cheque_number || '',
+      bank: paymentLineForm.bank || '',
+    }
+
+    if (editingPaymentLineIndex !== null) {
+      const updated = [...paymentLines]
+      updated[editingPaymentLineIndex] = nextLine
+      setPaymentLines(updated)
+    } else {
+      setPaymentLines((prev) => [...prev, nextLine])
+    }
+
+    closePaymentLineModal()
+    notifySuccess('Forma de pago agregada')
+  }
+
+  const deletePaymentLine = (index) => {
+    setPaymentLines((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const splitAllocationsForAmount = (baseAllocations, lineAmount) => {
+    const totalBase = baseAllocations.reduce((sum, a) => sum + Number(a.amount || 0), 0)
+    const lineInt = Math.round(Number(lineAmount || 0))
+    if (lineInt <= 0 || totalBase <= 0) return []
+
+    const withFraction = baseAllocations.map((a) => {
+      const raw = (Number(a.amount || 0) / totalBase) * lineInt
+      const floored = Math.floor(raw)
+      return {
+        invoice_id: a.invoice_id,
+        amount: floored,
+        fraction: raw - floored,
+      }
+    })
+
+    let currentSum = withFraction.reduce((sum, a) => sum + a.amount, 0)
+    let remainder = lineInt - currentSum
+
+    withFraction.sort((a, b) => b.fraction - a.fraction)
+    let idx = 0
+    while (remainder > 0 && withFraction.length > 0) {
+      withFraction[idx % withFraction.length].amount += 1
+      remainder -= 1
+      idx += 1
+    }
+
+    return withFraction
+      .filter((a) => a.amount > 0)
+      .map((a) => ({ invoice_id: a.invoice_id, amount: a.amount }))
+  }
+
+  const getMovementReference = (movement) => {
+    if (movement?.external_id) return movement.external_id
+
+    const description = String(movement?.description || '')
+    if (!description) return '-'
+
+    const afipMatch = description.match(/AFIP\s*[:#-]?\s*([A-Za-z0-9\-\/]+)/i)
+    if (afipMatch?.[1]) return afipMatch[1]
+
+    const invoiceMatch = description.match(/Factura\s*[:#-]?\s*([A-Za-z0-9\-\/]+)/i)
+    if (invoiceMatch?.[1]) return invoiceMatch[1]
+
+    return '-'
+  }
+
+  const openDeletePaymentModal = (movement) => {
+    setPaymentToDelete(movement)
+    setDeletePaymentModalOpen(true)
+  }
+
+  const handleDeletePayment = async () => {
+    if (!paymentToDelete) return
+
     try {
-      const amount = parseFloat(movementForm.amount || '0')
-      if (!amount || amount <= 0) {
-        alert('Ingrese un monto válido')
+      const response = await accountService.deleteCustomerPayment(id, paymentToDelete.id)
+      if (response.data?.error) {
+        notifyError(response.data.error)
         return
       }
 
+      notifySuccess('Pago eliminado correctamente')
+      setDeletePaymentModalOpen(false)
+      setPaymentToDelete(null)
+      await loadAccountData()
+    } catch (e) {
+      notifyError(e?.response?.data?.error || e?.message || 'No se pudo eliminar el pago')
+    }
+  }
+
+  // Submit unified movement
+  const handleSubmitMovement = async () => {
+    try {
       if (movementForm.type === 'PAYMENT') {
-        // Payment with allocations
+        if (paymentLines.length === 0) {
+          notifyError('Agrega al menos una forma de pago')
+          return
+        }
+
+        const totalAmount = Math.round(totalPaymentLines)
+        if (!totalAmount || totalAmount <= 0) {
+          notifyError('El total de formas de pago debe ser mayor a 0')
+          return
+        }
+
+        // Payment with allocations (base)
         const allocArray = Object.entries(allocations)
           .map(([invoice_id, amt]) => ({ invoice_id: Number(invoice_id), amount: parseFloat(amt || '0') }))
           .filter(a => a.amount > 0)
 
         const sumAlloc = allocArray.reduce((acc, a) => acc + a.amount, 0)
-        if (sumAlloc > amount + 0.0001) {
-          alert('La suma de asignaciones supera el monto total')
+        if (sumAlloc > totalAmount + 0.0001) {
+          notifyError('La suma de asignaciones supera el monto total')
           return
         }
 
-        const payload = {
-          total_amount: amount,
-          method: movementForm.method,
-          payment_date: movementForm.date,
-          notes: movementForm.description || '',
-          cheque_number: movementForm.cheque_number || null,
-          bank: movementForm.bank || null,
-          allocations: allocArray
-        }
+        for (const line of paymentLines) {
+          const lineAmount = Math.round(Number(line.amount || 0))
+          if (lineAmount <= 0) continue
 
-        const response = await accountService.createCustomerPayment(id, payload)
-        
-        if (response.data?.error) {
-          alert(`Error: ${response.data.error}`)
-          return
+          const lineAllocations = splitAllocationsForAmount(allocArray, lineAmount)
+          const retentionNote = line.method === 'RETENTION' && line.retention_type
+            ? `Retención ${line.retention_type}`
+            : ''
+
+          const payload = {
+            total_amount: lineAmount,
+            method: line.method,
+            payment_date: movementForm.date,
+            notes: [movementForm.description, line.notes, retentionNote].filter(Boolean).join(' | '),
+            cheque_number: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.cheque_number || null) : null,
+            bank: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.bank || null) : null,
+            allocations: lineAllocations,
+          }
+
+          const response = await accountService.createCustomerPayment(id, payload)
+          if (response.data?.error) {
+            notifyError(response.data.error)
+            return
+          }
         }
         
-        alert('Pago registrado exitosamente')
+        notifySuccess('Pagos registrados exitosamente')
       } else {
+        const amount = parseFloat(movementForm.amount || '0')
+        if (!amount || amount <= 0) {
+          notifyError('Ingrese un monto válido')
+          return
+        }
+
         // Debit/Credit Note
         const payload = {
           amount: amount,
@@ -172,20 +362,18 @@ function AccountDetail() {
           external_id: movementForm.external_id
         }
         await accountService.createMovement(id, payload)
-        alert('Movimiento registrado exitosamente')
+        notifySuccess('Movimiento registrado exitosamente')
       }
 
       // Cerrar modal y limpiar ANTES de recargar datos
       setMovementModalOpen(false)
       setAllocations({})
+      setPaymentLines([])
       setMovementForm({
         type: 'PAYMENT',
         amount: '',
-        method: 'CASH',
         date: new Date().toISOString().split('T')[0],
         description: '',
-        cheque_number: '',
-        bank: '',
         external_id: ''
       })
       
@@ -194,7 +382,7 @@ function AccountDetail() {
     } catch (e) {
       console.error('Error completo:', e)
       const errorMsg = e.response?.data?.error || e.message || 'Error desconocido al registrar el movimiento'
-      alert(`Error al registrar el movimiento: ${errorMsg}`)
+      notifyError(errorMsg)
       setError(errorMsg)
     }
   }
@@ -239,7 +427,7 @@ function AccountDetail() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Factura</TableCell>
+                    <TableCell>N° de Factura</TableCell>
                     <TableCell>Tipo</TableCell>
                     <TableCell>Fecha</TableCell>
                     <TableCell align="right">Total</TableCell>
@@ -252,7 +440,7 @@ function AccountDetail() {
                 <TableBody>
                   {invoices.map((inv) => (
                     <TableRow key={inv.id} hover>
-                      <TableCell>{inv.number || `#${inv.id}`}</TableCell>
+                      <TableCell>{inv.id_afip || inv.number || `#${inv.id}`}</TableCell>
                       <TableCell>
                         <Chip 
                           label={inv.invoice_type || 'B'} 
@@ -261,14 +449,14 @@ function AccountDetail() {
                           variant="outlined"
                         />
                       </TableCell>
-                      <TableCell>{inv.date ? formatDate(inv.date) : '-'}</TableCell>
+                      <TableCell>{(inv.invoice_date || inv.date) ? formatDate(inv.invoice_date || inv.date) : '-'}</TableCell>
                       <TableCell align="right">{formatCurrency(inv.total_amount || 0, false)}</TableCell>
                       <TableCell align="right">{formatCurrency(inv.paid_amount || 0, false)}</TableCell>
                       <TableCell align="right">{formatCurrency(inv.balance || 0, false)}</TableCell>
                       <TableCell>
                         <Chip
-                          label={inv.status || 'N/A'}
-                          color={inv.status === 'PAID' ? 'success' : inv.status === 'PARTIAL_PAID' ? 'warning' : 'default'}
+                          label={invoiceStatusMap[inv.status]?.label || inv.status || 'N/A'}
+                          color={invoiceStatusMap[inv.status]?.color || 'default'}
                           size="small"
                         />
                       </TableCell>
@@ -300,6 +488,7 @@ function AccountDetail() {
                   <TableCell>Descripción</TableCell>
                   <TableCell align="right">Débito</TableCell>
                   <TableCell align="right">Crédito</TableCell>
+                  <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -314,8 +503,8 @@ function AccountDetail() {
                       />
                     </TableCell>
                     <TableCell>
-                      {movement.external_id ? (
-                        <Chip label={movement.external_id} size="small" variant="outlined" />
+                      {getMovementReference(movement) !== '-' ? (
+                        <Chip label={getMovementReference(movement)} size="small" variant="outlined" />
                       ) : (
                         '-'
                       )}
@@ -327,11 +516,23 @@ function AccountDetail() {
                     <TableCell align="right" sx={{ color: 'success.main' }}>
                       {movement.direction === 'CREDIT' ? formatCurrency(movement.amount, false) : '-'}
                     </TableCell>
+                    <TableCell align="center">
+                      {movement.type === 'PAYMENT' ? (
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon fontSize="small" />}
+                          onClick={() => openDeletePaymentModal(movement)}
+                        >
+                          Borrar
+                        </Button>
+                      ) : '-'}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(!account.movements || account.movements.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">Sin movimientos</TableCell>
+                    <TableCell colSpan={7} align="center">Sin movimientos</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -343,8 +544,8 @@ function AccountDetail() {
       {/* Unified Movement Modal */}
       <Dialog open={movementModalOpen} onClose={() => setMovementModalOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Registrar Movimiento</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+        <DialogContent sx={{ pt: 1.25 }}>
+          <Grid container spacing={2} sx={{ mt: 0.25 }}>
             {/* Tipo de Movimiento */}
             <Grid item xs={12} md={6}>
               <TextField
@@ -364,37 +565,20 @@ function AccountDetail() {
               </TextField>
             </Grid>
 
-            {/* Método de Pago (solo si es PAYMENT) */}
-            {movementForm.type === 'PAYMENT' && (
+            {/* Monto (solo para notas) */}
+            {movementForm.type !== 'PAYMENT' && (
               <Grid item xs={12} md={6}>
                 <TextField
-                  select
-                  label="Método de Pago"
-                  value={movementForm.method}
-                  onChange={(e) => setMovementForm({ ...movementForm, method: e.target.value })}
+                  type="number"
+                  label="Monto"
+                  value={movementForm.amount}
+                  onChange={(e) => setMovementForm({ ...movementForm, amount: e.target.value })}
                   fullWidth
                   required
-                >
-                  <MenuItem value="CASH">Efectivo</MenuItem>
-                  <MenuItem value="TRANSFER">Transferencia</MenuItem>
-                  <MenuItem value="CHEQUE">Cheque</MenuItem>
-                  <MenuItem value="ECHEQ">E-Cheq</MenuItem>
-                </TextField>
+                  inputProps={{ step: 0.01, min: 0 }}
+                />
               </Grid>
             )}
-
-            {/* Monto */}
-            <Grid item xs={12} md={movementForm.type === 'PAYMENT' ? 12 : 6}>
-              <TextField
-                type="number"
-                label="Monto"
-                value={movementForm.amount}
-                onChange={(e) => setMovementForm({ ...movementForm, amount: e.target.value })}
-                fullWidth
-                required
-                inputProps={{ step: 0.01, min: 0 }}
-              />
-            </Grid>
 
             {/* Fecha */}
             <Grid item xs={12} md={6}>
@@ -407,28 +591,6 @@ function AccountDetail() {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-
-            {/* Campos específicos para Cheque/E-Cheq */}
-            {movementForm.type === 'PAYMENT' && (movementForm.method === 'CHEQUE' || movementForm.method === 'ECHEQ') && (
-              <>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Número de Cheque"
-                    value={movementForm.cheque_number}
-                    onChange={(e) => setMovementForm({ ...movementForm, cheque_number: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Banco"
-                    value={movementForm.bank}
-                    onChange={(e) => setMovementForm({ ...movementForm, bank: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-              </>
-            )}
 
             {/* Campo Número AFIP para Notas de Crédito/Débito */}
             {(movementForm.type === 'DEBIT_NOTE' || movementForm.type === 'CREDIT_NOTE') && (
@@ -460,6 +622,43 @@ function AccountDetail() {
           {/* Invoice Allocation (solo para Pagos) */}
           {movementForm.type === 'PAYMENT' && (
             <Box sx={{ mt: 3 }}>
+              <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                  <Typography variant="subtitle1" fontWeight="bold">Formas de Pago</Typography>
+                  <Button size="small" variant="contained" onClick={() => openPaymentLineModal()}>
+                    Agregar Forma
+                  </Button>
+                </Box>
+
+                {paymentLines.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">Sin formas de pago cargadas</Typography>
+                ) : (
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Método</TableCell>
+                        <TableCell align="right">Monto</TableCell>
+                        <TableCell>Detalle</TableCell>
+                        <TableCell align="center">Acciones</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paymentLines.map((line, index) => (
+                        <TableRow key={`${line.method}-${index}`}>
+                          <TableCell>{line.method === 'RETENTION' ? `Retención${line.retention_type ? ` - ${line.retention_type}` : ''}` : line.method}</TableCell>
+                          <TableCell align="right">{formatCurrency(line.amount, false)}</TableCell>
+                          <TableCell>{line.notes || '-'}</TableCell>
+                          <TableCell align="center">
+                            <Button size="small" onClick={() => openPaymentLineModal(line, index)}>Editar</Button>
+                            <Button size="small" color="error" onClick={() => deletePaymentLine(index)}>Eliminar</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </Box>
+
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="subtitle1" fontWeight="bold">Distribución en Facturas</Typography>
                 {invoices.length > 0 && invoices.some(inv => {
@@ -470,7 +669,7 @@ function AccountDetail() {
                     size="small" 
                     variant="outlined"
                     onClick={autoDistribute}
-                    disabled={!movementForm.amount || parseFloat(movementForm.amount) <= 0}
+                    disabled={totalPaymentLines <= 0}
                   >
                     Distribuir Automáticamente
                   </Button>
@@ -485,11 +684,11 @@ function AccountDetail() {
                 <Alert severity="success">Todas las facturas están pagadas</Alert>
               ) : (
                 <>
-                <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
+                <TableContainer component={Paper} sx={{ maxHeight: 300, borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Factura</TableCell>
+                        <TableCell>N° de Factura</TableCell>
                         <TableCell>Fecha</TableCell>
                         <TableCell align="right">Saldo</TableCell>
                         <TableCell align="right" sx={{ width: 150 }}>Asignar</TableCell>
@@ -503,8 +702,8 @@ function AccountDetail() {
                         const balance = Math.max(0, (inv.balance ?? (inv.total_amount - (inv.paid_amount || 0))))
                         return (
                           <TableRow key={inv.id}>
-                            <TableCell>{inv.number || `#${inv.id}`}</TableCell>
-                            <TableCell>{inv.date}</TableCell>
+                            <TableCell>{inv.id_afip || inv.number || `#${inv.id}`}</TableCell>
+                            <TableCell>{(inv.invoice_date || inv.date) ? formatDate(inv.invoice_date || inv.date) : '-'}</TableCell>
                             <TableCell align="right">{formatCurrency(balance, false)}</TableCell>
                             <TableCell align="right">
                               <TextField
@@ -525,11 +724,11 @@ function AccountDetail() {
                     </TableBody>
                   </Table>
                 </TableContainer>
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
                   <Grid container spacing={2}>
                     <Grid item xs={4}>
                       <Typography variant="body2" color="text.secondary">Monto Total:</Typography>
-                      <Typography variant="h6">{formatCurrency(parseFloat(movementForm.amount || 0), false)}</Typography>
+                      <Typography variant="h6">{formatCurrency(totalPaymentLines, false)}</Typography>
                     </Grid>
                     <Grid item xs={4}>
                       <Typography variant="body2" color="text.secondary">Asignado:</Typography>
@@ -540,12 +739,12 @@ function AccountDetail() {
                     <Grid item xs={4}>
                       <Typography variant="body2" color="text.secondary">Sin Asignar:</Typography>
                       <Typography variant="h6" color={
-                        (parseFloat(movementForm.amount || 0) - Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0)) > 0 
+                        (totalPaymentLines - Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0)) > 0 
                           ? 'warning.main' 
                           : 'success.main'
                       }>
                         {formatCurrency(
-                          parseFloat(movementForm.amount || 0) - Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0),
+                          totalPaymentLines - Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0),
                           false
                         )}
                       </Typography>
@@ -561,6 +760,98 @@ function AccountDetail() {
           <Button onClick={() => setMovementModalOpen(false)}>Cancelar</Button>
           <Button variant="contained" onClick={handleSubmitMovement}>
             {movementForm.type === 'PAYMENT' ? 'Registrar Pago' : 'Registrar Nota'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={paymentLineModalOpen} onClose={closePaymentLineModal} maxWidth="md" fullWidth>
+        <DialogTitle>{editingPaymentLineIndex !== null ? 'Editar Forma de Pago' : 'Agregar Forma de Pago'}</DialogTitle>
+        <DialogContent sx={{ pt: 1.25 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12}>
+              <TextField
+                select
+                label="Método de Pago"
+                value={paymentLineForm.method}
+                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, method: e.target.value, retention_type: '' })}
+                fullWidth
+              >
+                <MenuItem value="CASH">Efectivo</MenuItem>
+                <MenuItem value="TRANSFER">Transferencia</MenuItem>
+                <MenuItem value="CHEQUE">Cheque</MenuItem>
+                <MenuItem value="ECHEQ">E-Cheq</MenuItem>
+                <MenuItem value="RETENTION">Retención</MenuItem>
+              </TextField>
+            </Grid>
+
+            {paymentLineForm.method === 'RETENTION' && (
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  label="Tipo de Retención"
+                  value={paymentLineForm.retention_type}
+                  onChange={(e) => setPaymentLineForm({ ...paymentLineForm, retention_type: e.target.value })}
+                  fullWidth
+                  sx={{ minWidth: 380 }}
+                  SelectProps={{ displayEmpty: true }}
+                  helperText="Seleccioná un tipo de retención"
+                >
+                  <MenuItem value="" disabled>Seleccionar tipo...</MenuItem>
+                  {retentionTypes.map((rt) => (
+                    <MenuItem key={rt.id_retention_type} value={rt.name}>{rt.name}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
+
+            <Grid item xs={12}>
+              <TextField
+                type="number"
+                label="Monto"
+                value={paymentLineForm.amount}
+                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, amount: e.target.value })}
+                fullWidth
+                inputProps={{ step: 0.01, min: 0 }}
+              />
+            </Grid>
+
+            {(paymentLineForm.method === 'CHEQUE' || paymentLineForm.method === 'ECHEQ') && (
+              <>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Número de Cheque"
+                    value={paymentLineForm.cheque_number}
+                    onChange={(e) => setPaymentLineForm({ ...paymentLineForm, cheque_number: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Banco"
+                    value={paymentLineForm.bank}
+                    onChange={(e) => setPaymentLineForm({ ...paymentLineForm, bank: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+              </>
+            )}
+
+            <Grid item xs={12}>
+              <TextField
+                label="Notas"
+                value={paymentLineForm.notes}
+                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, notes: e.target.value })}
+                fullWidth
+                multiline
+                rows={2}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closePaymentLineModal}>Cancelar</Button>
+          <Button variant="contained" onClick={addOrUpdatePaymentLine}>
+            {editingPaymentLineIndex !== null ? 'Actualizar' : 'Agregar'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -603,6 +894,19 @@ function AccountDetail() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAttachmentsModalOpen(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deletePaymentModalOpen} onClose={() => setDeletePaymentModalOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Eliminar Pago</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            ¿Seguro que querés borrar este pago? Esta acción va a desasignar sus montos de facturas y ajustar el saldo automáticamente.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletePaymentModalOpen(false)}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={handleDeletePayment}>Borrar Pago</Button>
         </DialogActions>
       </Dialog>
     </PageLayout>

@@ -27,10 +27,10 @@ import { useChannel, useConfirm, useNotify } from '../context'
 
 // Map backend status codes to Spanish labels and MUI chip colors
 const statusMap = {
-  OPEN: { label: 'Abierta', color: 'info' },
+  OPEN: { label: 'Abierto', color: 'success' },
   IN_PROGRESS: { label: 'En Progreso', color: 'warning' },
   READY: { label: 'Lista', color: 'success' },
-  INVOICED: { label: 'Facturada', color: 'primary' },
+  INVOICED: { label: 'Facturado', color: 'primary' },
   CANCELLED: { label: 'Cancelada', color: 'error' },
 }
 
@@ -43,8 +43,8 @@ function WorkOrderList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [order, setOrder] = useState('asc')
-  const [orderBy, setOrderBy] = useState('external_id')
+  const [order, setOrder] = useState('desc')
+  const [orderBy, setOrderBy] = useState('open_date')
   const navigate = useNavigate()
   const { channel } = useChannel()
   const confirm = useConfirm()
@@ -138,7 +138,6 @@ function WorkOrderList() {
   }
 
   const getWorkOrderAmount = (workOrder) => {
-    if (workOrder.status !== 'INVOICED') return null
     if (workOrder.invoice_total != null) return Number(workOrder.invoice_total || 0)
     return Number(workOrder.final_total || 0) + Number(workOrder.total_iva || 0)
   }
@@ -273,16 +272,14 @@ function WorkOrderList() {
                       <TableCell sx={{ py: 2.5 }}>{workOrder.description}</TableCell>
                       <TableCell sx={{ py: 2.5 }}>
                         <Chip
-                          label={(statusMap[workOrder.status]?.label) || 'Abierta'}
+                          label={(statusMap[workOrder.status]?.label) || 'Abierto'}
                           color={(statusMap[workOrder.status]?.color) || 'default'}
                           size="small"
                         />
                       </TableCell>
                       <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
                       <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
-                        {getWorkOrderAmount(workOrder) !== null
-                          ? formatCurrency(getWorkOrderAmount(workOrder), false)
-                          : '-'}
+                        {formatCurrency(getWorkOrderAmount(workOrder), false)}
                       </TableCell>
                       <TableCell align="center" sx={{ py: 2.5 }}>
                         <Box display="flex" gap={1} justifyContent="center">

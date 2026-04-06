@@ -82,6 +82,12 @@ export const accountService = {
   },
   createCustomerPayment(customerId, payload) {
     return api.post(`/customers/${customerId}/payments`, payload)
+  },
+  updateCustomerPayment(customerId, paymentId, payload) {
+    return api.put(`/customers/${customerId}/payments/${paymentId}`, payload)
+  },
+  deleteCustomerPayment(customerId, paymentId) {
+    return api.delete(`/customers/${customerId}/payments/${paymentId}`)
   }
 }
 
@@ -103,6 +109,9 @@ export const invoiceService = {
 
 export const paymentService = {
   register: (payload) => api.post('/payments', payload),
+  listReceived: (params) => api.get('/payments/received', { params }),
+  listReceivedProvinces: (params) => api.get('/payments/received/provinces', { params }),
+  exportReceivedCsv: (params) => api.get('/payments/received/export', { params, responseType: 'blob' }),
 }
 
 export const deliveryNoteService = {
@@ -152,6 +161,16 @@ export const stockService = {
   adjust: (data) => api.post('/stock/adjust', data),
   consume: (data) => api.post('/stock/consume', data),
   getMovements: (params) => api.get('/stock/movements', { params }),
+}
+
+// Invoice Payment Methods (Formas de Pago Compuestas)
+export const invoicePaymentService = {
+  getRetentionTypes: () => api.get('/retention-types'),
+  getPaymentMethods: (invoiceId) => api.get(`/invoices/${invoiceId}/payments`),
+  addPaymentMethod: (invoiceId, data) => api.post(`/invoices/${invoiceId}/payments`, data),
+  updatePaymentMethod: (paymentId, data) => api.put(`/invoice-payments/${paymentId}`, data),
+  deletePaymentMethod: (paymentId) => api.delete(`/invoice-payments/${paymentId}`),
+  getPaymentSummary: (invoiceId) => api.get(`/invoices/${invoiceId}/payments/summary`),
 }
 
 export default api

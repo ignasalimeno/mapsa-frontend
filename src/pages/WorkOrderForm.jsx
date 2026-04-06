@@ -224,7 +224,7 @@ function WorkOrderForm() {
           quantity: item.quantity,
           cost: item.cost,
           price: item.price,
-          iva_percentage: item.iva_percentage || 21.00,
+          iva_percentage: item.iva_percentage ?? 21.00,
           iva_amount: item.iva_amount || 0,
           invoice_value: item.invoice_value || 0,
         }));
@@ -466,7 +466,7 @@ function WorkOrderForm() {
           quantity: item.quantity,
           cost: item.cost,
           price: item.price,
-          iva_percentage: item.iva_percentage || 21.00,
+          iva_percentage: item.iva_percentage ?? 21.00,
         }));
         const replaceResp = await workOrderService.replaceItems(workOrderId, replacePayload);
         if (replaceResp.data.error) {
@@ -745,10 +745,12 @@ function WorkOrderForm() {
               </Grid>
               <Grid item xs={12}>
                 <TextField
-                  label="ID AFIP"
+                  label="N° de Factura"
+                  type="number"
                   value={facturaForm.id_afip}
                   onChange={(e) => setFacturaForm({ ...facturaForm, id_afip: e.target.value })}
                   fullWidth
+                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
                 />
               </Grid>
             </Grid>

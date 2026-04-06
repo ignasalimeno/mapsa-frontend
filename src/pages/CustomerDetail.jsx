@@ -107,6 +107,13 @@ function CustomerDetail() {
     notes: "",
   });
 
+  const invoiceStatusMap = {
+    NEW: { label: 'Pendiente', color: 'warning' },
+    PARTIAL_PAID: { label: 'Parcial', color: 'info' },
+    PAID: { label: 'Pagada', color: 'success' },
+    CANCELLED: { label: 'Anulada', color: 'error' },
+  }
+
   useEffect(() => {
     loadCustomerData();
   }, [id]);
@@ -470,7 +477,7 @@ function CustomerDetail() {
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                      <TableCell sx={{ fontWeight: 600, py: 2 }}>ID AFIP</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>N° de Factura</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Fecha</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Total</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 600, py: 2 }}>Pagado</TableCell>
@@ -493,7 +500,11 @@ function CustomerDetail() {
                         <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.paid_amount, false)}</TableCell>
                         <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.balance, false)}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>
-                          <Chip size="small" label={inv.status === 'PAID' ? 'Pagada' : inv.status === 'PARTIAL_PAID' ? 'Parcial' : 'Nueva'} color={inv.status === 'PAID' ? 'success' : inv.status === 'PARTIAL_PAID' ? 'warning' : 'default'} />
+                          <Chip
+                            size="small"
+                            label={invoiceStatusMap[inv.status]?.label || inv.status || 'Pendiente'}
+                            color={invoiceStatusMap[inv.status]?.color || 'default'}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

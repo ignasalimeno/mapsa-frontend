@@ -31,6 +31,7 @@ import BulkPriceUpdate from './pages/BulkPriceUpdate'
 import InvoiceList from './pages/InvoiceList'
 import SalesList from './pages/SalesList'
 import UtilityList from './pages/UtilityList'
+import PaymentsReceivedList from './pages/PaymentsReceivedList'
 import TestConnection from './pages/TestConnection'
 import theme from './theme'
 import { AppUiProvider, ChannelProvider } from './context'
@@ -76,6 +77,7 @@ function App() {
             <Route path="/stock/valuation" element={<StockValuation />} />
             <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/sales" element={<SalesList />} />
+            <Route path="/payments/received" element={<PaymentsReceivedList />} />
             <Route path="/utilities" element={<UtilityList />} />
                   <Route path="/test" element={<TestConnection />} />
                   </Routes>

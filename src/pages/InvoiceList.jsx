@@ -6,6 +6,9 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
   InputAdornment,
   MenuItem,
@@ -22,7 +25,7 @@ import {
 } from '@mui/material'
 import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-material'
 import { invoiceService } from '../services/api'
-import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
+import { InvoicePaymentComposer, LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel, useConfirm, useNotify } from '../context'
 
@@ -65,6 +68,8 @@ function InvoiceList() {
   const { channel } = useChannel()
   const confirm = useConfirm()
   const { error: notifyError, success: notifySuccess } = useNotify()
+  const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -138,6 +143,17 @@ function InvoiceList() {
     }
   }
 
+  const handleOpenPayments = (invoice) => {
+    setSelectedInvoice(invoice)
+    setPaymentsDialogOpen(true)
+  }
+
+  const handleClosePayments = () => {
+    setPaymentsDialogOpen(false)
+    setSelectedInvoice(null)
+    loadInvoices()
+  }
+
   const getSortableValue = (invoice, field) => {
     switch (field) {
       case 'id_afip':
@@ -188,7 +204,7 @@ function InvoiceList() {
   })
 
   const sortableColumns = [
-    { id: 'id_afip', label: 'ID AFIP' },
+    { id: 'id_afip', label: 'N° de Factura' },
     { id: 'invoice_date', label: 'Fecha' },
     { id: 'customer_name', label: 'Cliente' },
     { id: 'work_order_number', label: 'Remito' },
@@ -380,11 +396,20 @@ function InvoiceList() {
                       <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.paid_amount, false)}</TableCell>
                       <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.balance, false)}</TableCell>
                       <TableCell align="center" sx={{ py: 2.5 }}>
-                        <TableActionIconButton
-                          kind="delete"
-                          onClick={() => handleDelete(invoice)}
-                          ariaLabel={`Eliminar factura ${invoice.id_afip || invoice.id}`}
-                        />
+                        <Box display="flex" gap={1} justifyContent="center">
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleOpenPayments(invoice)}
+                          >
+                            Pagos
+                          </Button>
+                          <TableActionIconButton
+                            kind="delete"
+                            onClick={() => handleDelete(invoice)}
+                            ariaLabel={`Eliminar factura ${invoice.id_afip || invoice.id}`}
+                          />
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -394,6 +419,26 @@ function InvoiceList() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={paymentsDialogOpen}
+        onClose={handleClosePayments}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Formas de Pago - Factura {selectedInvoice?.id_afip || selectedInvoice?.id || '-'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1, pb: 2 }}>
+          {selectedInvoice && (
+            <InvoicePaymentComposer
+              invoiceId={selectedInvoice.id}
+              invoiceTotal={Number(selectedInvoice.total || 0)}
+              onPaymentUpdate={() => {}}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   )
 }
