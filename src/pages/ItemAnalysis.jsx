@@ -246,16 +246,16 @@ function ItemAnalysis() {
                             {isWithdrawal && row.description && ` - ${row.description}`}
                           </TableCell>
                           <TableCell align="right" sx={{ color: textColor }}>{row.quantity || '-'}</TableCell>
-                          <TableCell align="right" sx={{ color: textColor }}>{row.unit_price ? formatCurrency(row.unit_price, false) : '-'}</TableCell>
+                          <TableCell align="right" sx={{ color: textColor }}>{row.unit_price ? formatCurrency(row.unit_price) : '-'}</TableCell>
                           <TableCell align="right" sx={{ color: textColor, fontWeight: isWithdrawal ? 600 : 400 }}>
-                            {formatCurrency(row.total, false)}
+                            {formatCurrency(row.total)}
                           </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>
-                          {formatCurrency(row.accumulated, false)}
+                          {formatCurrency(row.accumulated)}
                         </TableCell>
                           <TableCell align="center" sx={{ color: textColor }}>{row.year} S{row.week_number}</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 600, color: textColor }}>
-                            {isWithdrawal ? '-' : formatCurrency(row.weekly_sum, false)}
+                            {isWithdrawal ? '-' : formatCurrency(row.weekly_sum)}
                         </TableCell>
                       </TableRow>
                     );
@@ -268,7 +268,7 @@ function ItemAnalysis() {
                 Total de registros: {data.length}
               </Typography>
               <Typography variant="h6" color="primary">
-                Total Acumulado: {formatCurrency(data[data.length - 1]?.accumulated || 0, false)}
+                Total Acumulado: {formatCurrency(data[data.length - 1]?.accumulated || 0)}
               </Typography>
             </Box>
           </CardContent>

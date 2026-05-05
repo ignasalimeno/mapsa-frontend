@@ -317,7 +317,7 @@ function SalesList() {
                           color={statusMap[row.status]?.color || 'default'}
                         />
                       </TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(row.total, false)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(row.total)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

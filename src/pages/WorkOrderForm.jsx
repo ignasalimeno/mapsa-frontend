@@ -426,15 +426,15 @@ function WorkOrderForm() {
   };
 
   const calculateTotals = () => {
-    const totalCost = Math.round(orderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0));
-    const totalPrice = Math.round(orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0));
+    const totalCost = Math.round(orderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0) * 100) / 100;
+    const totalPrice = Math.round(orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 100) / 100;
     const totalIva = Math.round(orderItems.reduce((sum, item) => {
       const subtotal = item.price * item.quantity;
       const iva = subtotal * ((item.iva_percentage ?? 21) / 100);
       return sum + iva;
-    }, 0));
-    const totalInvoice = Math.round(totalPrice + totalIva);
-    const profit = Math.round(totalPrice - totalCost);
+    }, 0) * 100) / 100;
+    const totalInvoice = Math.round((totalPrice + totalIva) * 100) / 100;
+    const profit = Math.round((totalPrice - totalCost) * 100) / 100;
     
     return { totalCost, totalPrice, totalIva, totalInvoice, profit };
   };
@@ -872,10 +872,10 @@ function WorkOrderForm() {
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1.5, mb: 0.75 }}>
                       <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-                        Costo: {formatCurrency(option.purchase_price || 0, false)}
+                        Costo: {formatCurrency(option.purchase_price || 0)}
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
-                        Venta: {formatCurrency(option.sale_price || 0, false)}
+                        Venta: {formatCurrency(option.sale_price || 0)}
                       </Typography>
                     </Box>
                     {option.tags && option.tags.length > 0 && (
@@ -955,7 +955,7 @@ function WorkOrderForm() {
                           disabled={isInvoiced}
                         />
                       </TableCell>
-                    <TableCell align="right">{formatCurrency(item.price * item.quantity, false)}</TableCell>
+                    <TableCell align="right">{formatCurrency(item.price * item.quantity)}</TableCell>
                     <TableCell align="center">
                       <TextField
                         select
@@ -972,10 +972,10 @@ function WorkOrderForm() {
                       </TextField>
                     </TableCell>
                     <TableCell align="right">
-                      {formatCurrency((item.price * item.quantity) * ((item.iva_percentage ?? 21) / 100), false)}
+                      {formatCurrency((item.price * item.quantity) * ((item.iva_percentage ?? 21) / 100))}
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: 'primary.50' }}>
-                      {formatCurrency((item.price * item.quantity) * (1 + (item.iva_percentage ?? 21) / 100), false)}
+                      {formatCurrency((item.price * item.quantity) * (1 + (item.iva_percentage ?? 21) / 100))}
                     </TableCell>
                     <TableCell align="center">
                       <IconButton
@@ -1013,25 +1013,25 @@ function WorkOrderForm() {
                 <Grid item xs={12} md={2.4}>
                   <Typography variant="body2" color="text.secondary">Total Costo</Typography>
                   <Typography variant="h6" sx={{ color: '#f44336' }}>
-                    {formatCurrency(totalCost, false)}
+                    {formatCurrency(totalCost)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={2.4}>
                   <Typography variant="body2" color="text.secondary">Subtotal (sin IVA)</Typography>
                   <Typography variant="h6" sx={{ color: '#2196f3' }}>
-                    {formatCurrency(totalPrice, false)}
+                    {formatCurrency(totalPrice)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={2.4}>
                   <Typography variant="body2" color="text.secondary">Total IVA</Typography>
                   <Typography variant="h6" sx={{ color: '#ff9800' }}>
-                    {formatCurrency(totalIva, false)}
+                    {formatCurrency(totalIva)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={2.4}>
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>MONTO DEL REMITO (TOTAL FACTURA)</Typography>
                   <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
-                    {formatCurrency(totalInvoice, false)}
+                    {formatCurrency(totalInvoice)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={2.4}>

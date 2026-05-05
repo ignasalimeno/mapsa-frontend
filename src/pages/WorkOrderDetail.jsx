@@ -274,7 +274,7 @@ function WorkOrderDetail() {
             <Grid item xs={12} md={4}>
               <Box textAlign="center" p={3} sx={{ backgroundColor: 'primary.50', borderRadius: 2 }}>
                 <Typography variant="h4" fontWeight={700} color="primary.main">
-                  {formatCurrency(workOrder.final_total || 0, false)}
+                  {formatCurrency(workOrder.final_total || 0)}
                 </Typography>
                 <Typography variant="subtitle1" color="primary.main">
                   Monto del Remito (Total factura)
@@ -378,7 +378,7 @@ function WorkOrderDetail() {
         onClose={closePaymentModal}
         maxWidth="sm"
         title="Registrar Pago"
-        subtitle={account ? `Balance actual: ${formatCurrency(account.balance || 0, false)}` : 'Registra un pago para el cliente'}
+        subtitle={account ? `Balance actual: ${formatCurrency(account.balance || 0)}` : 'Registra un pago para el cliente'}
         actions={(
           <>
             <Button onClick={closePaymentModal} variant="outlined">Cancelar</Button>
@@ -418,7 +418,7 @@ function WorkOrderDetail() {
               </Grid>
               {account && (
                 <Grid item xs={12}>
-                  <Typography variant="body2" color="text.secondary">Balance actual: {formatCurrency(account.balance || 0, false)}</Typography>
+                  <Typography variant="body2" color="text.secondary">Balance actual: {formatCurrency(account.balance || 0)}</Typography>
                 </Grid>
               )}
             </Grid>

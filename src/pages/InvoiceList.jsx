@@ -392,9 +392,9 @@ function InvoiceList() {
                           color={statusMap[invoice.status]?.color || 'default'}
                         />
                       </TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.total, false)}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.paid_amount, false)}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.balance, false)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.total)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.paid_amount)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.balance)}</TableCell>
                       <TableCell align="center" sx={{ py: 2.5 }}>
                         <Box display="flex" gap={1} justifyContent="center">
                           <Button

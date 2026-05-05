@@ -1,17 +1,14 @@
 /**
- * Formatea un número como moneda argentina: $1.234
+ * Formatea un número como moneda argentina: $1.234,56
  * @param {number} value - El valor numérico a formatear
- * @param {boolean} includeDecimals - Si incluir decimales (default: false - SIN DECIMALES)
+ * @param {boolean} includeDecimals - Si incluir decimales (default: true - CON DECIMALES)
  * @returns {string} - El valor formateado
  */
-export const formatCurrency = (value, includeDecimals = false) => {
-  if (value === null || value === undefined || value === '') return '$0';
+export const formatCurrency = (value, includeDecimals = true) => {
+  if (value === null || value === undefined || value === '') return '$0,00';
   
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '$0';
-  
-  // Redondear a entero
-  const rounded = Math.round(num);
+  if (isNaN(num)) return '$0,00';
   
   const options = {
     minimumFractionDigits: includeDecimals ? 2 : 0,
@@ -19,7 +16,7 @@ export const formatCurrency = (value, includeDecimals = false) => {
   };
   
   // Usar locale es-AR para formato argentino
-  return '$' + rounded.toLocaleString('es-AR', options);
+  return '$' + num.toLocaleString('es-AR', options);
 };
 
 /**
@@ -34,15 +31,12 @@ export const formatNumber = (value, includeDecimals = false) => {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '0';
   
-  // Redondear a entero
-  const rounded = Math.round(num);
-  
   const options = {
     minimumFractionDigits: includeDecimals ? 2 : 0,
     maximumFractionDigits: includeDecimals ? 2 : 0,
   };
   
-  return rounded.toLocaleString('es-AR', options);
+  return num.toLocaleString('es-AR', options);
 };
 
 /**

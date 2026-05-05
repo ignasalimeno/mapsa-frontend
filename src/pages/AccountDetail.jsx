@@ -402,7 +402,7 @@ function AccountDetail() {
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
             <Box>
               <Typography variant="h4" sx={{ color: account.balance > 0 ? 'error.main' : account.balance < 0 ? 'success.main' : 'text.primary', fontWeight: 600 }}>
-                Saldo: {formatCurrency(account.balance || 0, false)}
+                Saldo: {formatCurrency(account.balance || 0)}
               </Typography>
             </Box>
             <Button
@@ -450,9 +450,9 @@ function AccountDetail() {
                         />
                       </TableCell>
                       <TableCell>{(inv.invoice_date || inv.date) ? formatDate(inv.invoice_date || inv.date) : '-'}</TableCell>
-                      <TableCell align="right">{formatCurrency(inv.total_amount || 0, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(inv.paid_amount || 0, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(inv.balance || 0, false)}</TableCell>
+                      <TableCell align="right">{formatCurrency(inv.total_amount || 0)}</TableCell>
+                      <TableCell align="right">{formatCurrency(inv.paid_amount || 0)}</TableCell>
+                      <TableCell align="right">{formatCurrency(inv.balance || 0)}</TableCell>
                       <TableCell>
                         <Chip
                           label={invoiceStatusMap[inv.status]?.label || inv.status || 'N/A'}
@@ -511,10 +511,10 @@ function AccountDetail() {
                     </TableCell>
                     <TableCell>{movement.description}</TableCell>
                     <TableCell align="right" sx={{ color: 'error.main' }}>
-                      {movement.direction === 'DEBIT' ? formatCurrency(movement.amount, false) : '-'}
+                      {movement.direction === 'DEBIT' ? formatCurrency(movement.amount) : '-'}
                     </TableCell>
                     <TableCell align="right" sx={{ color: 'success.main' }}>
-                      {movement.direction === 'CREDIT' ? formatCurrency(movement.amount, false) : '-'}
+                      {movement.direction === 'CREDIT' ? formatCurrency(movement.amount) : '-'}
                     </TableCell>
                     <TableCell align="center">
                       {movement.type === 'PAYMENT' ? (
@@ -646,7 +646,7 @@ function AccountDetail() {
                       {paymentLines.map((line, index) => (
                         <TableRow key={`${line.method}-${index}`}>
                           <TableCell>{line.method === 'RETENTION' ? `Retención${line.retention_type ? ` - ${line.retention_type}` : ''}` : line.method}</TableCell>
-                          <TableCell align="right">{formatCurrency(line.amount, false)}</TableCell>
+                          <TableCell align="right">{formatCurrency(line.amount)}</TableCell>
                           <TableCell>{line.notes || '-'}</TableCell>
                           <TableCell align="center">
                             <Button size="small" onClick={() => openPaymentLineModal(line, index)}>Editar</Button>
@@ -704,7 +704,7 @@ function AccountDetail() {
                           <TableRow key={inv.id}>
                             <TableCell>{inv.id_afip || inv.number || `#${inv.id}`}</TableCell>
                             <TableCell>{(inv.invoice_date || inv.date) ? formatDate(inv.invoice_date || inv.date) : '-'}</TableCell>
-                            <TableCell align="right">{formatCurrency(balance, false)}</TableCell>
+                            <TableCell align="right">{formatCurrency(balance)}</TableCell>
                             <TableCell align="right">
                               <TextField
                                 size="small"
@@ -728,12 +728,12 @@ function AccountDetail() {
                   <Grid container spacing={2}>
                     <Grid item xs={4}>
                       <Typography variant="body2" color="text.secondary">Monto Total:</Typography>
-                      <Typography variant="h6">{formatCurrency(totalPaymentLines, false)}</Typography>
+                      <Typography variant="h6">{formatCurrency(totalPaymentLines)}</Typography>
                     </Grid>
                     <Grid item xs={4}>
                       <Typography variant="body2" color="text.secondary">Asignado:</Typography>
                       <Typography variant="h6" color="primary.main">
-                        {formatCurrency(Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0), false)}
+                        {formatCurrency(Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0))}
                       </Typography>
                     </Grid>
                     <Grid item xs={4}>
@@ -744,8 +744,7 @@ function AccountDetail() {
                           : 'success.main'
                       }>
                         {formatCurrency(
-                          totalPaymentLines - Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0),
-                          false
+                          totalPaymentLines - Object.values(allocations).reduce((sum, val) => sum + parseFloat(val || 0), 0)
                         )}
                       </Typography>
                     </Grid>

@@ -136,6 +136,12 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
       return
     }
 
+    const maxAvailable = getRemainingAmount()
+    if (amount > maxAvailable + 0.01) {
+      notifyError(`El monto no puede superar el disponible: ${formatCurrency(maxAvailable)}`)
+      return
+    }
+
     if (formData.method === 'RETENTION' && !formData.retention_type) {
       notifyError('Selecciona el tipo de retención')
       return
@@ -187,12 +193,19 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
     try {
       setLoading(true)
       for (const draft of draftPayments) {
-        await invoicePaymentService.addPaymentMethod(invoiceId, {
-          method: draft.method,
-          amount: draft.amount,
-          retention_type: draft.retention_type,
-          notes: draft.notes,
-        })
+        try {
+          await invoicePaymentService.addPaymentMethod(invoiceId, {
+            method: draft.method,
+            amount: draft.amount,
+            retention_type: draft.retention_type,
+            notes: draft.notes,
+          })
+        } catch (innerErr) {
+          const msg = innerErr?.response?.data?.error || innerErr?.message || 'Error al guardar un pago'
+          notifyError(msg)
+          await loadPaymentMethods()
+          return
+        }
       }
       notifySuccess('Todos los pagos se guardaron correctamente')
       setDraftPayments([])
@@ -257,7 +270,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
         <Stack direction="row" spacing={2} sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Box flex={1}>
             <Typography variant="body2" color="text.secondary">Total Factura</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrency(invoiceTotal, false)}</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrency(invoiceTotal)}</Typography>
           </Box>
           <Box flex={1}>
             <Typography variant="body2" color="text.secondary">Total Pagado</Typography>
@@ -265,7 +278,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
               variant="h6" 
               sx={{ fontWeight: 600, color: totalPaid > 0 ? 'success.main' : 'text.primary' }}
             >
-              {formatCurrency(totalPaid, false)}
+              {formatCurrency(totalPaid)}
             </Typography>
           </Box>
           <Box flex={1}>
@@ -274,7 +287,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
               variant="h6"
               sx={{ fontWeight: 600, color: draftTotal > 0 ? 'info.main' : 'text.primary' }}
             >
-              {formatCurrency(draftTotal, false)}
+              {formatCurrency(draftTotal)}
             </Typography>
           </Box>
           <Box flex={1}>
@@ -283,7 +296,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
               variant="h6"
               sx={{ fontWeight: 600, color: getRemainingAmount() > 0 ? 'warning.main' : 'success.main' }}
             >
-              {formatCurrency(Math.max(0, invoiceTotal - totalWithDrafts), false)}
+              {formatCurrency(Math.max(0, invoiceTotal - totalWithDrafts))}
             </Typography>
           </Box>
         </Stack>
@@ -323,7 +336,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                       />
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
-                      {formatCurrency(method.amount, false)}
+                      {formatCurrency(method.amount)}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -381,7 +394,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                       />
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
-                      {formatCurrency(payment.amount, false)}
+                      {formatCurrency(payment.amount)}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -459,7 +472,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               fullWidth
-              helperText={`Máximo disponible: ${formatCurrency(getRemainingAmount(), false)}`}
+              helperText={`Máximo disponible: ${formatCurrency(getRemainingAmount())}`}
             />
 
             <TextField

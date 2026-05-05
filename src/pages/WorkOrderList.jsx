@@ -279,7 +279,7 @@ function WorkOrderList() {
                       </TableCell>
                       <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
                       <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
-                        {formatCurrency(getWorkOrderAmount(workOrder), false)}
+                        {formatCurrency(getWorkOrderAmount(workOrder))}
                       </TableCell>
                       <TableCell align="center" sx={{ py: 2.5 }}>
                         <Box display="flex" gap={1} justifyContent="center">

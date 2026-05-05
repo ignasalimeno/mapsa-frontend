@@ -75,11 +75,11 @@ function AccountList() {
   const handleExport = async () => {
     try {
       const response = await customerService.exportDebtors()
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', 'clientes_deudores.xlsx')
+      link.setAttribute('download', 'clientes_deudores.csv')
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -202,7 +202,7 @@ function AccountList() {
                             color={balance > 0 ? 'error.main' : balance < 0 ? 'success.main' : 'text.primary'}
                             fontWeight="bold"
                           >
-                            {formatCurrency(balance, false)}
+                            {formatCurrency(balance)}
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ py: 2.5 }}>

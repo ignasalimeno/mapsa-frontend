@@ -24,6 +24,7 @@ import { SwapHoriz as TransferIcon, Tune as AdjustIcon, History as HistoryIcon }
 import { itemService, stockService, warehouseService } from '../services/api'
 import { LoadingOverlay, PageLayout } from '../components'
 import StockBadge from '../components/StockBadge'
+import { formatCurrency } from '../utils/formatters'
 
 function StockOverview() {
   const navigate = useNavigate()
@@ -136,7 +137,7 @@ function StockOverview() {
             {stock.map(row => (
               <TableRow key={row.id} hover>
                 <TableCell>{row.name}</TableCell>
-                <TableCell align="right">${row.sale_price}</TableCell>
+                <TableCell align="right">{formatCurrency(row.sale_price)}</TableCell>
                 <TableCell align="center">
                   <StockBadge quantity={row.total_quantity} />
                 </TableCell>

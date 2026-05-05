@@ -173,7 +173,7 @@ function UtilityList() {
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">Venta total</Typography>
-              <Typography variant="h5">{formatCurrency(data.totals.sale_total || 0, false)}</Typography>
+              <Typography variant="h5">{formatCurrency(data.totals.sale_total || 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -181,7 +181,7 @@ function UtilityList() {
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">Costo total</Typography>
-              <Typography variant="h5">{formatCurrency(data.totals.cost_total || 0, false)}</Typography>
+              <Typography variant="h5">{formatCurrency(data.totals.cost_total || 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -189,7 +189,7 @@ function UtilityList() {
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">Utilidad total</Typography>
-              <Typography variant="h5">{formatCurrency(data.totals.utility_total || 0, false)}</Typography>
+              <Typography variant="h5">{formatCurrency(data.totals.utility_total || 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -250,9 +250,9 @@ function UtilityList() {
                       <TableCell sx={{ py: 2.5 }}>{item.plate || '-'}</TableCell>
                       <TableCell sx={{ py: 2.5 }}>{formatDate(item.open_date)}</TableCell>
                       <TableCell sx={{ py: 2.5 }}>{item.customer_name}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.sale_total, false)}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.cost_total, false)}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.utility_total, false)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.sale_total)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.cost_total)}</TableCell>
+                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(item.utility_total)}</TableCell>
                       <TableCell align="right" sx={{ py: 2.5 }}>{Number(item.margin_percentage || 0).toFixed(2)}%</TableCell>
                     </TableRow>
                   ))}

@@ -145,7 +145,7 @@ function VehicleDetail() {
                           <TableCell sx={{ py: 2.5 }}>{workOrder.km_at_entry ? formatNumber(workOrder.km_at_entry) : '-'}</TableCell>
                           <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
                             {getWorkOrderAmount(workOrder) !== null
-                              ? formatCurrency(getWorkOrderAmount(workOrder), false)
+                              ? formatCurrency(getWorkOrderAmount(workOrder))
                               : '-'}
                           </TableCell>
                           <TableCell align="center" sx={{ py: 2.5 }}>

@@ -38,55 +38,12 @@ function CustomerList() {
   const handleExportDebtorsCsv = async () => {
     try {
       setError(null)
-      const response = await invoiceService.list({})
-      const allInvoices = response.data || []
-      const debtorInvoices = allInvoices
-        .filter((inv) => Number(inv.balance || 0) > 0)
-        .sort((a, b) => {
-          const byCustomer = (a.customer_name || '').localeCompare(b.customer_name || '')
-          if (byCustomer !== 0) return byCustomer
-          return (a.number || '').localeCompare(b.number || '')
-        })
-
-      const totalByCustomer = debtorInvoices.reduce((acc, inv) => {
-        const key = String(inv.customer_id)
-        acc[key] = (acc[key] || 0) + Number(inv.balance || 0)
-        return acc
-      }, {})
-
-      const headers = [
-        'cliente',
-        'id_comprobante',
-        'valor_facturado',
-        'valor_adeudado',
-        'total_cte',
-      ]
-
-      const escapeCsv = (value) => {
-        const text = value === null || value === undefined ? '' : String(value)
-        return `"${text.replace(/"/g, '""')}"`
-      }
-
-      const lines = [
-        headers.join(','),
-        ...debtorInvoices.map((inv) => {
-          const customerLabel = `${inv.customer_name || ''} (${inv.customer_number || '-'})`
-          return [
-            customerLabel,
-            inv.id_afip || '',
-            Number(inv.total || 0).toFixed(2),
-            Number(inv.balance || 0).toFixed(2),
-            Number(totalByCustomer[String(inv.customer_id)] || 0).toFixed(2),
-          ].map(escapeCsv).join(',')
-        }),
-      ]
-
-      const csv = `\uFEFF${lines.join('\n')}`
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const response = await customerService.exportDebtors()
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', 'detalle_facturas_deudores.csv')
+      link.setAttribute('download', 'clientes_deudores.csv')
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -289,7 +246,7 @@ function CustomerList() {
                         <TableCell sx={{ py: 2.5 }}>{customer.province || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.postal_code || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5, fontWeight: 600, color: Number(customer.balance || 0) > 0 ? 'error.main' : 'success.main' }}>
-                          {formatCurrency(customer.balance || 0, false)}
+                          {formatCurrency(customer.balance || 0)}
                         </TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.vehicles || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{customer.phone || '-'}</TableCell>

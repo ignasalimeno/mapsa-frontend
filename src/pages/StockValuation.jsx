@@ -86,7 +86,7 @@ function StockValuation() {
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">Valorizado a costo</Typography>
-              <Typography variant="h5">{formatCurrency(data.totals.cost_valuation || 0, false)}</Typography>
+              <Typography variant="h5">{formatCurrency(data.totals.cost_valuation || 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -94,7 +94,7 @@ function StockValuation() {
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">Valorizado a venta</Typography>
-              <Typography variant="h5">{formatCurrency(data.totals.sale_valuation || 0, false)}</Typography>
+              <Typography variant="h5">{formatCurrency(data.totals.sale_valuation || 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -131,10 +131,10 @@ function StockValuation() {
                     <TableRow key={item.id}>
                       <TableCell>{item.name}</TableCell>
                       <TableCell align="right">{formatNumber(item.total_quantity, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.purchase_price, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.sale_price, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.cost_valuation, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.sale_valuation, false)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.purchase_price)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.sale_price)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.cost_valuation)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.sale_valuation)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

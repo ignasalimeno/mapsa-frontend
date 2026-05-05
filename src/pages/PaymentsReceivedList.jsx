@@ -232,7 +232,7 @@ function PaymentsReceivedList() {
                   key={s.type}
                   color="primary"
                   variant="outlined"
-                  label={`${paymentTypeLabel[s.type] || s.type}: ${formatCurrency(s.total_amount || 0, false)}`}
+                  label={`${paymentTypeLabel[s.type] || s.type}: ${formatCurrency(s.total_amount || 0)}`}
                 />
               ))}
             </Box>
@@ -272,7 +272,7 @@ function PaymentsReceivedList() {
                       <TableCell>{formatDate(row.date)}</TableCell>
                       <TableCell>{row.customer_name}</TableCell>
                       <TableCell>{row.province || '-'}</TableCell>
-                      <TableCell align="right">{formatCurrency(row.amount || 0, false)}</TableCell>
+                      <TableCell align="right">{formatCurrency(row.amount || 0)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

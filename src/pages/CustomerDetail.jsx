@@ -239,7 +239,7 @@ function CustomerDetail() {
                   Cuenta Corriente
                 </Typography>
                 <Typography variant="h3" fontWeight={700} color={Number(customer.balance || 0) > 0 ? 'error.main' : 'success.main'}>
-                  {formatCurrency(customer.balance || 0, false)}
+                  {formatCurrency(customer.balance || 0)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {Number(customer.balance || 0) > 0 ? 'Saldo deudor' : 'Saldo al día'}
@@ -496,9 +496,9 @@ function CustomerDetail() {
                       >
                         <TableCell sx={{ py: 2.5 }}>{inv.id_afip || '-'}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{formatDate(inv.date)}</TableCell>
-                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.total_amount, false)}</TableCell>
-                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.paid_amount, false)}</TableCell>
-                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.balance, false)}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.total_amount)}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.paid_amount)}</TableCell>
+                        <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(inv.balance)}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>
                           <Chip
                             size="small"
@@ -665,7 +665,7 @@ function CustomerDetail() {
                         <TableCell sx={{ py: 2.5 }}>{workOrder.description || "-"}</TableCell>
                         <TableCell align="right" sx={{ py: 2.5, fontWeight: 600 }}>
                           {getWorkOrderAmount(workOrder) !== null
-                            ? formatCurrency(getWorkOrderAmount(workOrder), false)
+                            ? formatCurrency(getWorkOrderAmount(workOrder))
                             : '-'}
                         </TableCell>
                         <TableCell align="center" sx={{ py: 2.5 }}>
