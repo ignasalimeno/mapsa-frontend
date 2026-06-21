@@ -20,6 +20,7 @@ import { workOrderService, invoiceService, paymentService, accountService } from
 import { LoadingOverlay, PageLayout, StyledDialog } from '../components'
 import { formatCurrency, formatDate, formatNumber } from '../utils/formatters'
 import { useConfirm, useNotify } from '../context'
+import { WORK_ORDER_STATUS } from '../constants/workOrderStatus'
 
 function WorkOrderDetail() {
   const { id } = useParams()
@@ -155,27 +156,9 @@ function WorkOrderDetail() {
     }
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'OPEN': return 'info'
-      case 'IN_PROGRESS': return 'warning'
-      case 'READY': return 'success'
-      case 'INVOICED': return 'primary'
-      case 'CANCELLED': return 'error'
-      default: return 'default'
-    }
-  }
+  const getStatusColor = (status) => WORK_ORDER_STATUS[status]?.color || 'default'
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'OPEN': return 'Abierto'
-      case 'IN_PROGRESS': return 'En Progreso'
-      case 'READY': return 'Listo'
-      case 'INVOICED': return 'Facturado'
-      case 'CANCELLED': return 'Cancelado'
-      default: return status
-    }
-  }
+  const getStatusText = (status) => WORK_ORDER_STATUS[status]?.label || status
 
   if (error) {
     return <Alert severity="error">{error}</Alert>
@@ -274,10 +257,13 @@ function WorkOrderDetail() {
             <Grid item xs={12} md={4}>
               <Box textAlign="center" p={3} sx={{ backgroundColor: 'primary.50', borderRadius: 2 }}>
                 <Typography variant="h4" fontWeight={700} color="primary.main">
-                  {formatCurrency(workOrder.final_total || 0)}
+                  {formatCurrency((workOrder.final_total || 0) + (workOrder.total_iva || 0))}
                 </Typography>
                 <Typography variant="subtitle1" color="primary.main">
-                  Monto del Remito (Total factura)
+                  Total del Remito (con IVA)
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Subtotal: {formatCurrency(workOrder.final_total || 0)} | IVA: {formatCurrency(workOrder.total_iva || 0)}
                 </Typography>
               </Box>
             </Grid>

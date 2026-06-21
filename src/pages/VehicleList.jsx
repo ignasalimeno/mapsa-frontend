@@ -180,7 +180,7 @@ function VehicleList() {
                           />
                           <TableActionIconButton
                             kind="workorder"
-                          onClick={() => navigate(`/work-orders/new?vehicle=${vehicle.id}`)}
+                          onClick={() => navigate(`/work-orders/new?vehicle_id=${vehicle.id}`)}
                             ariaLabel={`Crear remito para vehículo ${vehicle.brand} ${vehicle.model}`}
                           />
                         </Box>

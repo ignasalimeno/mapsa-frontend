@@ -15,27 +15,25 @@ import {
   TableRow,
   Paper,
   TextField,
-  InputLabel,
-  Select,
   MenuItem,
   IconButton,
   Chip,
   Autocomplete,
-  Container,
   Stack,
   Divider,
 } from "@mui/material";
 import {
-  Add as AddIcon,
   Delete as DeleteIcon,
   Save as SaveIcon,
   ReceiptLong,
   ContactPhone,
-  DirectionsCar,
+  Search as SearchIcon,
 } from "@mui/icons-material";
-import { LoadingOverlay, PageLayout, StyledDialog, TagMultiSelect } from '../components';
+import { LoadingOverlay, PageLayout, StyledDialog } from '../components';
+import ProductSearchModal from '../components/ProductSearchModal';
 import { customerService, vehicleService, itemService, tagService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
-import { formatCurrency, formatNumber } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
+import { WORK_ORDER_STATUS } from '../constants/workOrderStatus';
 import { useNotify } from '../context';
 
 // --- Reusable section header component ---
@@ -80,20 +78,17 @@ function WorkOrderForm() {
   const { id: workOrderId } = useParams();
   const [searchParams] = useSearchParams();
   const preselectedCustomerId = searchParams.get('customer_id');
-  const preselectedVehicleId = searchParams.get('vehicle_id');
+  const preselectedVehicleId = searchParams.get('vehicle_id') || searchParams.get('vehicle');
   const isEditing = !!workOrderId;
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
   const [tags, setTags] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(false);
   const [itemSearchTerm, setItemSearchTerm] = useState('');
-  const [itemFilterTags, setItemFilterTags] = useState([]);
-  const [recentItems, setRecentItems] = useState([]);
   const [selectedItemForAdd, setSelectedItemForAdd] = useState(null);
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
   const autocompleteRef = useRef(null);
   const { error: notifyError, success: notifySuccess } = useNotify();
   
@@ -113,62 +108,7 @@ function WorkOrderForm() {
   const [facturaForm, setFacturaForm] = useState({ id_afip: '', invoice_type: 'A' });
   
   const [orderItems, setOrderItems] = useState([]);
-  const defaultItemNames = [
-    'M/obra','M/obra TC','Peajes','Nafta','Viaticos','Ley 25413 (1,5 %)','F/C','Inteses Bco','Mantenimiento',
-    'VMP/MC/DS/GG','Recupero Gastos','Inteses CV','HC','SEGURO','Precintos x unidad','Cinta Aisladora 10 mts',
-    'Autoperforantes x unidad','La Gotita 2 ml','Teflon','Estaño','Bonus Track','NAMEPE','GASTOS EXTERNOS',
-    'SICORE MC 12/2024','BT','RECUPERO','VARIOS','INTERES BANCO','OTROS 1','OTROS 2'
-  ];
-  const [newItem, setNewItem] = useState({
-    item_id: "",
-    quantity: 1,
-    cost: "",
-    price: "",
-    costRaw: "",
-    priceRaw: "",
-    iva_percentage: 21.00,
-  });
-
-  // Removed local formatNumber - using imported formatCurrency/formatNumber
-
-  const formatRawWithCommas = (raw) => {
-    if (raw === undefined || raw === null) return "";
-    // Mantener solo dígitos
-    const digits = String(raw).replace(/\D/g, "");
-    if (!digits) return "";
-    // Insertar comas de miles
-    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
-
-  const parseCommasToNumber = (raw) => {
-    if (raw === undefined || raw === null || raw === "") return 0;
-    const digits = String(raw).replace(/,/g, "");
-    const num = parseFloat(digits);
-    return isNaN(num) ? 0 : num;
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'OPEN': return 'info';
-      case 'IN_PROGRESS': return 'warning';
-      case 'READY': return 'success';
-      case 'INVOICED': return 'primary';
-      case 'CANCELLED': return 'error';
-      default: return 'default';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'OPEN': return 'Abierto';
-      case 'IN_PROGRESS': return 'En Progreso';
-      case 'READY': return 'Listo';
-      case 'INVOICED': return 'Facturado';
-      case 'CANCELLED': return 'Cancelado';
-      default: return status;
-    }
-  };
-
+  const statusInfo = WORK_ORDER_STATUS[workOrder.status] || { label: workOrder.status, color: 'default' };
   const isInvoiced = workOrder.status === 'INVOICED';
 
   useEffect(() => {
@@ -241,17 +181,8 @@ function WorkOrderForm() {
   useEffect(() => {
     if (workOrder.id_customer) {
       loadVehicles(workOrder.id_customer);
-      const customer = customers.find(c => c.id === parseInt(workOrder.id_customer));
-      setSelectedCustomer(customer);
     }
-  }, [workOrder.id_customer, customers]);
-
-  useEffect(() => {
-    if (workOrder.id_vehicle) {
-      const vehicle = vehicles.find(v => v.id === parseInt(workOrder.id_vehicle));
-      setSelectedVehicle(vehicle);
-    }
-  }, [workOrder.id_vehicle, vehicles]);
+  }, [workOrder.id_customer]);
 
   const loadCustomers = async () => {
     try {
@@ -325,34 +256,6 @@ function WorkOrderForm() {
     }
   };
 
-  const handleAddItem = () => {
-    if (!newItem.item_id) return;
-    
-    const selectedItem = items.find(item => item.id === parseInt(newItem.item_id));
-    if (!selectedItem) return;
-
-    const item = {
-      id: Date.now(), // ID temporal
-      item_id: selectedItem.id,
-      name: selectedItem.name,
-      type: selectedItem.type,
-      quantity: newItem.quantity,
-      cost: (newItem.costRaw ? parseCommasToNumber(newItem.costRaw) : (newItem.cost || selectedItem.purchase_price)),
-      price: (newItem.priceRaw ? parseCommasToNumber(newItem.priceRaw) : (newItem.price || selectedItem.sale_price)),
-    };
-
-    setOrderItems([...orderItems, item]);
-    setNewItem({
-      item_id: "",
-      quantity: 1,
-      cost: "",
-      price: "",
-      costRaw: "",
-      priceRaw: "",
-      iva_percentage: 21.00,
-    });
-  };
-
   const handleRemoveItem = (id) => {
     setOrderItems(orderItems.filter(item => item.id !== id));
   };
@@ -367,48 +270,17 @@ function WorkOrderForm() {
     }));
   };
 
-  const handleItemChange = (field, value) => {
-    // Auto-completar precios cuando se selecciona un item
-    if (field === 'item_id' && value) {
-      const selectedItem = items.find(item => item.id === parseInt(value));
-      if (selectedItem) {
-        setNewItem({
-          ...newItem,
-          item_id: value,
-          cost: selectedItem.purchase_price,
-          price: selectedItem.sale_price,
-          costRaw: formatRawWithCommas(selectedItem.purchase_price),
-          priceRaw: formatRawWithCommas(selectedItem.sale_price),          iva_percentage: 21.00,        });
-      } else {
-        setNewItem({ ...newItem, item_id: value });
-      }
-    } else if (field === 'costRaw') {
-      const formatted = formatRawWithCommas(value);
-      setNewItem({ ...newItem, costRaw: formatted });
-    } else if (field === 'priceRaw') {
-      const formatted = formatRawWithCommas(value);
-      setNewItem({ ...newItem, priceRaw: formatted });
-    } else {
-      setNewItem({ ...newItem, [field]: value });
-    }
-  };
-
-  // Add item from autocomplete and track recent items
-  const handleQuickAddItem = (item) => {
+  // Add item from autocomplete or modal
+  const handleQuickAddItem = (item, quantity = 1) => {
     if (!item) return;
-    
-    // Add to recent items list (keep last 5)
-    const updatedRecent = [item.id, ...recentItems.filter(id => id !== item.id)].slice(0, 5);
-    setRecentItems(updatedRecent);
-    localStorage.setItem('recentWorkOrderItems', JSON.stringify(updatedRecent));
-    
-    // Add item with qty 1
+
+    // Add item
     const orderItem = {
       id: Date.now(),
       item_id: item.id,
       name: item.name,
       type: item.type,
-      quantity: 1,
+      quantity: quantity,
       cost: item.purchase_price,
       price: item.sale_price,
       iva_percentage: item.iva_rate || 21.00,
@@ -416,13 +288,19 @@ function WorkOrderForm() {
     
     setOrderItems([...orderItems, orderItem]);
     
-    // Clear search and show success message
+    // Clear search
     setItemSearchTerm('');
     setSelectedItemForAdd(null);
     notifySuccess(`${item.name} agregado`);
     
-    // Auto-focus search for next item
-    setTimeout(() => autocompleteRef.current?.focus(), 300);
+    // Re-focus search for next item (only from inline autocomplete)
+    if (!productSearchOpen) {
+      setTimeout(() => autocompleteRef.current?.focus(), 300);
+    }
+  };
+
+  const handleModalAddItem = (item) => {
+    handleQuickAddItem(item, 1);
   };
 
   const calculateTotals = () => {
@@ -443,8 +321,14 @@ function WorkOrderForm() {
 
   const handleSave = async () => {
     const externalId = (workOrder.external_id || '').trim();
-    if (!workOrder.id_customer || !workOrder.id_warehouse || !externalId || orderItems.length === 0) {
-      notifyError('Por favor completa cliente, depósito, número de remito y al menos un item');
+    const missingFields = [];
+    if (!workOrder.id_customer) missingFields.push('cliente');
+    if (!workOrder.id_warehouse) missingFields.push('depósito');
+    if (!externalId) missingFields.push('número de remito');
+    if (orderItems.length === 0) missingFields.push('al menos un item');
+
+    if (missingFields.length > 0) {
+      notifyError(`Faltan datos obligatorios: ${missingFields.join(', ')}`);
       return;
     }
     
@@ -512,8 +396,8 @@ function WorkOrderForm() {
           <span>{isEditing ? `Editar Remito ${workOrder.external_id || '-'}` : "Nuevo Remito"}</span>
           {isEditing && (
             <Chip 
-              label={getStatusText(workOrder.status)} 
-              color={getStatusColor(workOrder.status)}
+              label={statusInfo.label} 
+              color={statusInfo.color}
               size="small"
             />
           )}
@@ -523,14 +407,24 @@ function WorkOrderForm() {
       onBack={() => navigate(-1)}
       actions={
         isEditing && workOrder.status === 'OPEN' ? (
-          <Button
-            variant="contained"
-            disabled={loading}
-            onClick={() => setFacturaModalOpen(true)}
-            size="large"
-          >
-            Generar Factura
-          </Button>
+          <>
+            <Button
+              variant="outlined"
+              disabled={loading}
+              onClick={() => setRemitoModalOpen(true)}
+              size="large"
+            >
+              Generar Remito
+            </Button>
+            <Button
+              variant="contained"
+              disabled={loading}
+              onClick={() => setFacturaModalOpen(true)}
+              size="large"
+            >
+              Generar Factura
+            </Button>
+          </>
         ) : null
       }
     >
@@ -548,7 +442,6 @@ function WorkOrderForm() {
               value={workOrder.id_customer}
               onChange={(e) => {
                 setWorkOrder({...workOrder, id_customer: e.target.value, id_vehicle: ''});
-                setSelectedVehicle(null);
               }}
               required
               disabled={isEditing}
@@ -761,147 +654,80 @@ function WorkOrderForm() {
         <CardContent>
           <Typography variant="h6" mb={2}>Items del Remito</Typography>
 
-          {/* Filters Always Visible - Above Search */}
-          <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>Filtros</Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TagMultiSelect
-                  options={tags}
-                  value={itemFilterTags}
-                  onChange={setItemFilterTags}
-                  label="Tags"
-                  placeholder="Seleccione los tags..."
-                  sx={{ width: '100%' }}
+          {/* Search and Add Products */}
+          <Box sx={{ mb: 3 }}>
+            <Grid container spacing={2} alignItems="flex-start">
+              <Grid item xs={12} sm={8}>
+                <Autocomplete
+                  ref={autocompleteRef}
+                  options={items}
+                  getOptionLabel={(opt) => `${opt.name}`}
+                  value={selectedItemForAdd}
+                  onChange={(e, newValue) => {
+                    setSelectedItemForAdd(newValue);
+                    if (newValue) {
+                      handleQuickAddItem(newValue);
+                    }
+                  }}
+                  inputValue={itemSearchTerm}
+                  onInputChange={(e, newInputValue) => {
+                    setItemSearchTerm(newInputValue);
+                  }}
+                  filterOptions={(opts, state) => {
+                    const input = state.inputValue.toLowerCase();
+                    if (!input) return opts;
+                    return opts.filter(item => 
+                      item.name.toLowerCase().includes(input) || 
+                      (item.code || '').toLowerCase().includes(input)
+                    );
+                  }}
+                  noOptionsText="Sin resultados"
+                  fullWidth
+                  size="small"
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Agregar producto o servicio"
+                      placeholder="Búsqueda rápida (Ctrl+K)"
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {option.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.code ? `${option.code} · ` : ''}
+                            Costo: {formatCurrency(option.purchase_price || 0)} · Venta: {formatCurrency(option.sale_price || 0)}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={option.type === 'service' ? 'Servicio' : 'Producto'}
+                          size="small"
+                          variant="outlined"
+                          color={option.type === 'service' ? 'secondary' : 'info'}
+                          sx={{ ml: 1, flexShrink: 0 }}
+                        />
+                      </Box>
+                    </li>
+                  )}
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={4}>
                 <Button
+                  fullWidth
                   variant="outlined"
-                  size="small"
-                  onClick={() => setItemFilterTags([])}
+                  startIcon={<SearchIcon />}
+                  onClick={() => setProductSearchOpen(true)}
+                  size="large"
+                  sx={{ height: 40 }}
                 >
-                  Limpiar filtros
+                  Buscar productos
                 </Button>
               </Grid>
             </Grid>
-          </Box>
-
-          {/* Autocomplete Search Section */}
-          <Box sx={{ mb: 3 }}>
-            <Autocomplete
-              ref={autocompleteRef}
-              options={items}
-              getOptionLabel={(opt) => `${opt.name}`}
-              value={selectedItemForAdd}
-              onChange={(e, newValue) => {
-                setSelectedItemForAdd(newValue);
-                if (newValue) {
-                  handleQuickAddItem(newValue);
-                }
-              }}
-              inputValue={itemSearchTerm}
-              onInputChange={(e, newInputValue) => {
-                setItemSearchTerm(newInputValue);
-              }}
-              filterOptions={(opts, state) => {
-                const input = state.inputValue.toLowerCase();
-                
-                // Filter by search term (if any)
-                let filtered = opts;
-                if (input) {
-                  filtered = opts.filter(item => 
-                    item.name.toLowerCase().includes(input) || 
-                    (item.code || '').toLowerCase().includes(input)
-                  );
-                }
-                
-                // Apply tag filtering (always, even without search)
-                if (itemFilterTags.length > 0) {
-                  const selectedTagIds = itemFilterTags.map((id) => Number(id));
-                  filtered = filtered.filter(item =>
-                    (item.tags || []).some((tag) => selectedTagIds.includes(Number(tag.id)))
-                  );
-                }
-                
-                return filtered;
-              }}
-              noOptionsText="Sin resultados"
-              placeholder="Búsqueda rápida"
-              fullWidth
-              size="small"
-              ListboxProps={{
-                sx: {
-                  maxHeight: 400,
-                  '& .MuiAutocomplete-option': {
-                    alignItems: 'flex-start',
-                    py: 1.25,
-                    px: 1.5,
-                    borderBottom: '1px solid #e3e8ee',
-                    backgroundColor: 'var(--row-bg) !important',
-                  },
-                  '& .MuiAutocomplete-option:hover': {
-                    backgroundColor: 'var(--row-bg) !important',
-                  },
-                  '& .MuiAutocomplete-option.Mui-focused': {
-                    backgroundColor: 'var(--row-bg) !important',
-                  },
-                  '& .MuiAutocomplete-option[aria-selected="true"]': {
-                    backgroundColor: 'var(--row-bg) !important',
-                  },
-                }
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Agregar producto o servicio"
-                  placeholder="Escribe nombre o código..."
-                />
-              )}
-              renderOption={(props, option, state) => (
-                <li
-                  {...props}
-                  style={{
-                    ...props.style,
-                    '--row-bg': state.index % 2 === 0 ? '#f7fbff' : '#f8fcf8',
-                  }}
-                >
-                  <Box sx={{ width: '100%' }}>
-                    <Typography variant="body1" sx={{ fontWeight: 700, fontSize: '1rem', mb: 0.5 }}>
-                      {option.name}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1.5, mb: 0.75 }}>
-                      <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-                        Costo: {formatCurrency(option.purchase_price || 0)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
-                        Venta: {formatCurrency(option.sale_price || 0)}
-                      </Typography>
-                    </Box>
-                    {option.tags && option.tags.length > 0 && (
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.75 }}>
-                        {option.tags.map((tag) => (
-                          <Chip
-                            key={tag.id}
-                            label={tag.name}
-                            size="small"
-                            variant="outlined"
-                            sx={{
-                              height: '20px',
-                              fontSize: '0.7rem',
-                              bgcolor: 'rgba(25, 118, 210, 0.08)',
-                              borderColor: 'rgba(25, 118, 210, 0.3)',
-                              color: '#1976d2',
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
-                </li>
-              )}
-            />
-            
           </Box>
 
           {/* Tabla de items */}
@@ -1008,33 +834,46 @@ function WorkOrderForm() {
 
           {/* Totales */}
           {orderItems.length > 0 && (
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={2.4}>
-                  <Typography variant="body2" color="text.secondary">Total Costo</Typography>
-                  <Typography variant="h6" sx={{ color: '#f44336' }}>
+            <Box
+              sx={{
+                mt: 3,
+                p: 2.5,
+                bgcolor: 'background.paper',
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'grey.200',
+                boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
+                position: { md: 'sticky' },
+                bottom: 16,
+                zIndex: 10,
+              }}
+            >
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={6} md={2}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>COSTO</Typography>
+                  <Typography variant="h6" sx={{ color: '#f44336', fontWeight: 700 }}>
                     {formatCurrency(totalCost)}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} md={2.4}>
-                  <Typography variant="body2" color="text.secondary">Subtotal (sin IVA)</Typography>
-                  <Typography variant="h6" sx={{ color: '#2196f3' }}>
+                <Grid item xs={6} md={2}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>SUBTOTAL (SIN IVA)</Typography>
+                  <Typography variant="h6" sx={{ color: '#2196f3', fontWeight: 700 }}>
                     {formatCurrency(totalPrice)}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} md={2.4}>
-                  <Typography variant="body2" color="text.secondary">Total IVA</Typography>
-                  <Typography variant="h6" sx={{ color: '#ff9800' }}>
+                <Grid item xs={6} md={2}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>IVA</Typography>
+                  <Typography variant="h6" sx={{ color: '#ff9800', fontWeight: 700 }}>
                     {formatCurrency(totalIva)}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} md={2.4}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>MONTO DEL REMITO (TOTAL FACTURA)</Typography>
-                  <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                <Grid item xs={6} md={3}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5, color: 'success.dark' }}>MONTO DEL REMITO</Typography>
+                  <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 800 }}>
                     {formatCurrency(totalInvoice)}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} md={2.4}>
+                <Grid item xs={12} md={3}>
                   <Button
                     fullWidth
                     variant="contained"
@@ -1042,6 +881,7 @@ function WorkOrderForm() {
                     onClick={handleSave}
                     size="large"
                     disabled={loading || isInvoiced}
+                    sx={{ py: 1.5 }}
                   >
                     {loading ? 'Guardando...' : (isEditing ? 'Actualizar Remito' : 'Guardar Remito')}
                   </Button>
@@ -1051,6 +891,14 @@ function WorkOrderForm() {
           )}
         </CardContent>
       </Card>
+
+      <ProductSearchModal
+        open={productSearchOpen}
+        onClose={() => setProductSearchOpen(false)}
+        items={items}
+        tags={tags}
+        onAddItem={handleModalAddItem}
+      />
     </PageLayout>
   );
 }

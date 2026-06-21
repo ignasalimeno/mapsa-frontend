@@ -20,6 +20,7 @@ import {
 import { vehicleService, workOrderService } from '../services/api'
 import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 import { formatCurrency, formatNumber, formatDate } from '../utils/formatters'
+import { WORK_ORDER_STATUS } from '../constants/workOrderStatus'
 
 function VehicleDetail() {
   const { id } = useParams()
@@ -99,7 +100,7 @@ function VehicleDetail() {
                 <Typography variant="h6">Remitos</Typography>
                 <Button
                   variant="contained"
-                  onClick={() => navigate(`/work-orders/new?vehicle=${vehicle.id}`)}
+                  onClick={() => navigate(`/work-orders/new?vehicle_id=${vehicle.id}`)}
                 >
                   Nuevo Remito
                 </Button>
@@ -137,8 +138,8 @@ function VehicleDetail() {
                           <TableCell sx={{ py: 2.5 }}>
                             <Chip
                               size="small"
-                              label={getStatusLabel(workOrder.status)}
-                              color={getStatusColor(workOrder.status)}
+                              label={WORK_ORDER_STATUS[workOrder.status]?.label || 'Abierto'}
+                              color={WORK_ORDER_STATUS[workOrder.status]?.color || 'default'}
                             />
                           </TableCell>
                           <TableCell sx={{ py: 2.5 }}>{workOrder.description || '-'}</TableCell>
@@ -167,28 +168,6 @@ function VehicleDetail() {
       )}
     </PageLayout>
   )
-}
-
-function getStatusColor(status) {
-  const colors = {
-    OPEN: 'info',
-    IN_PROGRESS: 'warning',
-    READY: 'success',
-    INVOICED: 'primary',
-    CANCELLED: 'error',
-  }
-  return colors[status] || 'default'
-}
-
-function getStatusLabel(status) {
-  const labels = {
-    OPEN: 'Abierto',
-    IN_PROGRESS: 'En Progreso',
-    READY: 'Listo',
-    INVOICED: 'Facturado',
-    CANCELLED: 'Cancelado',
-  }
-  return labels[status] || status
 }
 
 export default VehicleDetail

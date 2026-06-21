@@ -38,6 +38,7 @@ import {
 import { LoadingOverlay, PageLayout, StyledDialog, TableActionIconButton } from '../components';
 import { formatCurrency, formatDate, formatNumber } from '../utils/formatters';
 import { useNotify } from '../context';
+import { WORK_ORDER_STATUS } from '../constants/workOrderStatus';
 
 const PROVINCES = [
   'Buenos Aires',
@@ -649,16 +650,8 @@ function CustomerDetail() {
                         <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>
                           <Chip
-                            label={workOrder.status === 'OPEN' ? 'Abierta' : 
-                                   workOrder.status === 'IN_PROGRESS' ? 'En Progreso' :
-                                   workOrder.status === 'READY' ? 'Lista' :
-                                   workOrder.status === 'INVOICED' ? 'Facturada' :
-                                   workOrder.status === 'CANCELLED' ? 'Cancelada' : 'Abierta'}
-                            color={workOrder.status === 'OPEN' ? 'info' :
-                                   workOrder.status === 'IN_PROGRESS' ? 'warning' :
-                                   workOrder.status === 'READY' ? 'success' :
-                                   workOrder.status === 'INVOICED' ? 'primary' :
-                                   workOrder.status === 'CANCELLED' ? 'error' : 'info'}
+                            label={WORK_ORDER_STATUS[workOrder.status]?.label || 'Abierto'}
+                            color={WORK_ORDER_STATUS[workOrder.status]?.color || 'info'}
                             size="small"
                           />
                         </TableCell>

@@ -24,15 +24,7 @@ import { workOrderService, customerService, vehicleService } from '../services/a
 import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel, useConfirm, useNotify } from '../context'
-
-// Map backend status codes to Spanish labels and MUI chip colors
-const statusMap = {
-  OPEN: { label: 'Abierto', color: 'success' },
-  IN_PROGRESS: { label: 'En Progreso', color: 'warning' },
-  READY: { label: 'Lista', color: 'success' },
-  INVOICED: { label: 'Facturado', color: 'primary' },
-  CANCELLED: { label: 'Cancelada', color: 'error' },
-}
+import { WORK_ORDER_STATUS } from '../constants/workOrderStatus'
 
 function WorkOrderList() {
   const [workOrders, setWorkOrders] = useState([])
@@ -155,7 +147,7 @@ function WorkOrderList() {
       case 'description':
         return (workOrder.description || '').toLowerCase()
       case 'status':
-        return (statusMap[workOrder.status]?.label || workOrder.status || '').toLowerCase()
+        return (WORK_ORDER_STATUS[workOrder.status]?.label || workOrder.status || '').toLowerCase()
       case 'open_date':
         return new Date(workOrder.open_date || 0).getTime()
       case 'final_total':
@@ -272,8 +264,8 @@ function WorkOrderList() {
                       <TableCell sx={{ py: 2.5 }}>{workOrder.description}</TableCell>
                       <TableCell sx={{ py: 2.5 }}>
                         <Chip
-                          label={(statusMap[workOrder.status]?.label) || 'Abierto'}
-                          color={(statusMap[workOrder.status]?.color) || 'default'}
+                          label={(WORK_ORDER_STATUS[workOrder.status]?.label) || 'Abierto'}
+                          color={(WORK_ORDER_STATUS[workOrder.status]?.color) || 'default'}
                           size="small"
                         />
                       </TableCell>
