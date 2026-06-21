@@ -89,6 +89,7 @@ function WorkOrderForm() {
   const [itemSearchTerm, setItemSearchTerm] = useState('');
   const [selectedItemForAdd, setSelectedItemForAdd] = useState(null);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
+  const [editingValues, setEditingValues] = useState({});
   const autocompleteRef = useRef(null);
   const { error: notifyError, success: notifySuccess } = useNotify();
   
@@ -261,13 +262,38 @@ function WorkOrderForm() {
   };
 
   const handleOrderItemChange = (id, field, value) => {
+    if (field === 'quantity' || field === 'cost' || field === 'price') {
+      const key = `${id}-${field}`;
+      setEditingValues(prev => ({ ...prev, [key]: value }));
+      return;
+    }
     setOrderItems(prev => prev.map(item => {
       if (item.id !== id) return item;
-      let v = value;
-      if (field === 'quantity') v = parseInt(value) || 1;
-      if (field === 'cost' || field === 'price') v = parseFloat(value) || 0;
-      return { ...item, [field]: v };
+      return { ...item, [field]: value };
     }));
+  };
+
+  const handleItemBlur = (id, field) => {
+    const key = `${id}-${field}`;
+    setEditingValues(prev => {
+      const raw = prev[key];
+      if (raw === undefined) return prev;
+      let parsed;
+      if (field === 'quantity') {
+        parsed = parseInt(raw, 10);
+        if (isNaN(parsed) || parsed < 1) parsed = 1;
+      } else {
+        parsed = parseFloat(raw);
+        if (isNaN(parsed)) parsed = 0;
+      }
+      setOrderItems(prev => prev.map(item => {
+        if (item.id !== id) return item;
+        return { ...item, [field]: parsed };
+      }));
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   // Add item from autocomplete or modal
@@ -754,8 +780,9 @@ function WorkOrderForm() {
                         <TextField
                           size="small"
                           type="number"
-                          value={item.quantity}
+                          value={editingValues[`${item.id}-quantity`] ?? item.quantity}
                           onChange={(e) => handleOrderItemChange(item.id, 'quantity', e.target.value)}
+                          onBlur={() => handleItemBlur(item.id, 'quantity')}
                           inputProps={{ min: 1, style: { textAlign: 'center' } }}
                           sx={{ width: 80 }}
                           disabled={isInvoiced}
@@ -765,8 +792,9 @@ function WorkOrderForm() {
                         <TextField
                           size="small"
                           type="number"
-                          value={item.cost}
+                          value={editingValues[`${item.id}-cost`] ?? item.cost}
                           onChange={(e) => handleOrderItemChange(item.id, 'cost', e.target.value)}
+                          onBlur={() => handleItemBlur(item.id, 'cost')}
                           sx={{ width: 140 }}
                           disabled={isInvoiced}
                         />
@@ -775,8 +803,9 @@ function WorkOrderForm() {
                         <TextField
                           size="small"
                           type="number"
-                          value={item.price}
+                          value={editingValues[`${item.id}-price`] ?? item.price}
                           onChange={(e) => handleOrderItemChange(item.id, 'price', e.target.value)}
+                          onBlur={() => handleItemBlur(item.id, 'price')}
                           sx={{ width: 140 }}
                           disabled={isInvoiced}
                         />
