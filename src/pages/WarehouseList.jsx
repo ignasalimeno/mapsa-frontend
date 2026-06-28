@@ -2,31 +2,22 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button,
-  Card,
-  CardContent,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   Alert,
-  Chip
+  Chip,
 } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
 import { warehouseService } from '../services/api'
 import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
+import ExcelTable from '../components/ExcelTable'
+import WarehouseFormModal from '../components/WarehouseFormModal'
 import { useConfirm, useNotify } from '../context'
 
 function WarehouseList() {
   const [warehouses, setWarehouses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [order, setOrder] = useState('asc')
-  const [orderBy, setOrderBy] = useState('name')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editWarehouseId, setEditWarehouseId] = useState(null)
   const navigate = useNavigate()
   const confirm = useConfirm()
   const { error: notifyError, success: notifySuccess } = useNotify()
@@ -47,6 +38,21 @@ function WarehouseList() {
     }
   }
 
+  const handleOpenNew = () => {
+    setEditWarehouseId(null)
+    setModalOpen(true)
+  }
+
+  const handleOpenEdit = (id) => {
+    setEditWarehouseId(id)
+    setModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setModalOpen(false)
+    setEditWarehouseId(null)
+  }
+
   const handleDelete = async (id) => {
     const confirmed = await confirm({
       title: 'Eliminar depósito',
@@ -65,46 +71,45 @@ function WarehouseList() {
     }
   }
 
-  const getSortableValue = (warehouse, field) => {
-    switch (field) {
-      case 'name':
-        return warehouse.name || ''
-      case 'description':
-        return warehouse.description || ''
-      case 'is_active':
-        return warehouse.is_active ? 1 : 0
-      default:
-        return warehouse[field] ?? ''
-    }
-  }
-
-  const handleRequestSort = (field) => {
-    const isAsc = orderBy === field && order === 'asc'
-    setOrder(isAsc ? 'desc' : 'asc')
-    setOrderBy(field)
-  }
-
-  const sortedWarehouses = [...warehouses].sort((left, right) => {
-    const leftValue = getSortableValue(left, orderBy)
-    const rightValue = getSortableValue(right, orderBy)
-
-    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return order === 'asc' ? leftValue - rightValue : rightValue - leftValue
-    }
-
-    const comparison = String(leftValue).localeCompare(String(rightValue), 'es', {
-      numeric: true,
-      sensitivity: 'base',
-    })
-
-    return order === 'asc' ? comparison : -comparison
-  })
-
-  const sortableColumns = [
-    { id: 'name', label: 'Nombre' },
-    { id: 'description', label: 'Descripción' },
-    { id: 'is_active', label: 'Estado', align: 'center' },
+  const columns = [
+    { id: 'name', label: 'Nombre', width: 200 },
+    { id: 'description', label: 'Descripción', width: 300 },
+    {
+      id: 'is_active',
+      label: 'Estado',
+      align: 'center',
+      width: 100,
+      render: (row) => (
+        <Chip
+          label={row.is_active ? 'Activo' : 'Inactivo'}
+          color={row.is_active ? 'success' : 'default'}
+          size="small"
+        />
+      ),
+    },
   ]
+
+  const renderActions = (row) => (
+    <>
+      <TableActionIconButton
+        kind="edit"
+        onClick={() => handleOpenEdit(row.id)}
+        ariaLabel={`Editar depósito ${row.name}`}
+      />
+      <span style={{ display: 'inline-block', width: 8 }} />
+      <TableActionIconButton
+        kind="delete"
+        onClick={() => handleDelete(row.id)}
+        ariaLabel={`Eliminar depósito ${row.name}`}
+      />
+      <span style={{ display: 'inline-block', width: 8 }} />
+      <TableActionIconButton
+        kind="stock"
+        onClick={() => navigate(`/warehouses/${row.id}/stock`)}
+        ariaLabel={`Ver stock de depósito ${row.name}`}
+      />
+    </>
+  )
 
   return (
     <PageLayout
@@ -114,7 +119,7 @@ function WarehouseList() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/warehouses/new')}
+          onClick={handleOpenNew}
         >
           Nuevo Depósito
         </Button>
@@ -124,83 +129,19 @@ function WarehouseList() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Card>
-        <CardContent sx={{ p: 0 }}>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                  {sortableColumns.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      align={column.align || 'left'}
-                      sortDirection={orderBy === column.id ? order : false}
-                      sx={{ fontWeight: 600, py: 2 }}
-                    >
-                      <TableSortLabel
-                        active={orderBy === column.id}
-                        direction={orderBy === column.id ? order : 'asc'}
-                        onClick={() => handleRequestSort(column.id)}
-                      >
-                        {column.label}
-                      </TableSortLabel>
-                    </TableCell>
-                  ))}
-                  <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sortedWarehouses.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">No hay depósitos</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedWarehouses.map((wh, index) => (
-                    <TableRow
-                      key={wh.id}
-                      sx={{
-                        '&:hover': { backgroundColor: 'grey.50' },
-                        borderBottom: index === sortedWarehouses.length - 1 ? 'none' : '1px solid #e2e8f0',
-                      }}
-                    >
-                      <TableCell sx={{ py: 2.5 }}>{wh.name}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{wh.description || '-'}</TableCell>
-                      <TableCell align="center" sx={{ py: 2.5 }}>
-                        <Chip
-                          label={wh.is_active ? 'Activo' : 'Inactivo'}
-                          color={wh.is_active ? 'success' : 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="center" sx={{ py: 2.5 }}>
-                        <TableActionIconButton
-                          kind="edit"
-                          onClick={() => navigate(`/warehouses/edit/${wh.id}`)}
-                          ariaLabel={`Editar depósito ${wh.name}`}
-                        />
-                        <span style={{ display: 'inline-block', width: 8 }} />
-                        <TableActionIconButton
-                          kind="delete"
-                          onClick={() => handleDelete(wh.id)}
-                          ariaLabel={`Eliminar depósito ${wh.name}`}
-                        />
-                        <span style={{ display: 'inline-block', width: 8 }} />
-                        <TableActionIconButton
-                          kind="stock"
-                          onClick={() => navigate(`/warehouses/${wh.id}/stock`)}
-                          ariaLabel={`Ver stock de depósito ${wh.name}`}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+      <ExcelTable
+        columns={columns}
+        data={warehouses}
+        defaultSort="name"
+        actions={renderActions}
+      />
+
+      <WarehouseFormModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        onSaved={loadWarehouses}
+        warehouseId={editWarehouseId}
+      />
     </PageLayout>
   )
 }

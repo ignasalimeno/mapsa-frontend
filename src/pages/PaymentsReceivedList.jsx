@@ -9,18 +9,12 @@ import {
   Grid,
   InputAdornment,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material'
 import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
+import ExcelTable from '../components/ExcelTable'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { paymentService } from '../services/api'
 
@@ -41,6 +35,15 @@ const paymentTypeLabel = {
   RETENTION: 'Retención',
   OTRO: 'Otro',
 }
+
+const columns = [
+  { id: 'type', label: 'Tipo', width: 100, render: (row) => paymentTypeLabel[row.type] || row.type },
+  { id: 'retention_detail', label: 'Detalle Retención', width: 180, render: (row) => row.retention_detail || '-' },
+  { id: 'date', label: 'Fecha', width: 110, render: (row) => formatDate(row.date) },
+  { id: 'customer_name', label: 'Cliente', width: 200 },
+  { id: 'province', label: 'Provincia', width: 130, render: (row) => row.province || '-' },
+  { id: 'amount', label: 'Monto', width: 130, align: 'right', render: (row) => formatCurrency(row.amount || 0) },
+]
 
 function PaymentsReceivedList() {
   const [rows, setRows] = useState([])
@@ -242,43 +245,15 @@ function PaymentsReceivedList() {
 
       <Card>
         <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Detalle de Pagos</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {rows.length} resultado{rows.length !== 1 ? 's' : ''}
-            </Typography>
-          </Box>
-
-          {rows.length === 0 ? (
-            <Typography>No hay pagos con los filtros seleccionados.</Typography>
-          ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                    <TableCell sx={{ fontWeight: 600 }}>Tipo</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Detalle Retención</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Fecha</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Cliente</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Provincia</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>Monto</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{paymentTypeLabel[row.type] || row.type}</TableCell>
-                      <TableCell>{row.retention_detail || '-'}</TableCell>
-                      <TableCell>{formatDate(row.date)}</TableCell>
-                      <TableCell>{row.customer_name}</TableCell>
-                      <TableCell>{row.province || '-'}</TableCell>
-                      <TableCell align="right">{formatCurrency(row.amount || 0)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          <Typography variant="h6" sx={{ mb: 2 }}>Detalle de Pagos</Typography>
+          <ExcelTable
+            columns={columns}
+            data={rows}
+            defaultSort="date"
+            defaultOrder="desc"
+            emptyMessage="No hay pagos con los filtros seleccionados."
+            footer={`${rows.length} resultado${rows.length !== 1 ? 's' : ''}`}
+          />
         </CardContent>
       </Card>
     </PageLayout>

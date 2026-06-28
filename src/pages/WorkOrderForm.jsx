@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
@@ -18,7 +18,6 @@ import {
   MenuItem,
   IconButton,
   Chip,
-  Autocomplete,
   Stack,
   Divider,
 } from "@mui/material";
@@ -31,7 +30,7 @@ import {
 } from "@mui/icons-material";
 import { LoadingOverlay, PageLayout, StyledDialog } from '../components';
 import ProductSearchModal from '../components/ProductSearchModal';
-import { customerService, vehicleService, itemService, tagService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
+import { customerService, vehicleService, itemService, categoryService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 import { WORK_ORDER_STATUS } from '../constants/workOrderStatus';
 import { useNotify } from '../context';
@@ -84,13 +83,10 @@ function WorkOrderForm() {
   const [vehicles, setVehicles] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [itemSearchTerm, setItemSearchTerm] = useState('');
-  const [selectedItemForAdd, setSelectedItemForAdd] = useState(null);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
   const [editingValues, setEditingValues] = useState({});
-  const autocompleteRef = useRef(null);
   const { error: notifyError, success: notifySuccess } = useNotify();
   
   const [workOrder, setWorkOrder] = useState({
@@ -121,23 +117,16 @@ function WorkOrderForm() {
     }
   }, []);
 
-  // Keyboard shortcuts
+  // Keyboard shortcut: Escape to close product search
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl/Cmd+K to focus search
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        autocompleteRef.current?.focus();
-      }
-      // Escape to clear search
-      if (e.key === 'Escape' && itemSearchTerm) {
-        setItemSearchTerm('');
-        setSelectedItemForAdd(null);
+      if (e.key === 'Escape' && productSearchOpen) {
+        setProductSearchOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [itemSearchTerm]);
+  }, [productSearchOpen]);
 
   const loadWorkOrderData = async () => {
     try {
@@ -227,12 +216,12 @@ function WorkOrderForm() {
 
   const loadItems = async () => {
     try {
-      const [itemsResponse, tagsResponse] = await Promise.all([
+      const [itemsResponse, catResponse] = await Promise.all([
         itemService.getAll(),
-        tagService.getAll(),
+        categoryService.getAll(),
       ]);
       setItems(itemsResponse.data);
-      setTags(tagsResponse.data || []);
+      setCategories(catResponse.data || []);
       
       // Auto-incluir producto "Valor del Remito" en nuevas OT
       if (!isEditing && orderItems.length === 0) {
@@ -296,38 +285,26 @@ function WorkOrderForm() {
     });
   };
 
-  // Add item from autocomplete or modal
-  const handleQuickAddItem = (item, quantity = 1) => {
+  // Add item from modal
+  const handleModalAddItem = (item) => {
     if (!item) return;
 
-    // Add item
     const orderItem = {
       id: Date.now(),
       item_id: item.id,
       name: item.name,
       type: item.type,
-      quantity: quantity,
+      quantity: 1,
       cost: item.purchase_price,
       price: item.sale_price,
       iva_percentage: item.iva_rate || 21.00,
     };
     
     setOrderItems([...orderItems, orderItem]);
-    
-    // Clear search
-    setItemSearchTerm('');
-    setSelectedItemForAdd(null);
     notifySuccess(`${item.name} agregado`);
-    
-    // Re-focus search for next item (only from inline autocomplete)
-    if (!productSearchOpen) {
-      setTimeout(() => autocompleteRef.current?.focus(), 300);
-    }
   };
 
-  const handleModalAddItem = (item) => {
-    handleQuickAddItem(item, 1);
-  };
+
 
   const calculateTotals = () => {
     const totalCost = Math.round(orderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0) * 100) / 100;
@@ -683,65 +660,7 @@ function WorkOrderForm() {
           {/* Search and Add Products */}
           <Box sx={{ mb: 3 }}>
             <Grid container spacing={2} alignItems="flex-start">
-              <Grid item xs={12} sm={8}>
-                <Autocomplete
-                  ref={autocompleteRef}
-                  options={items}
-                  getOptionLabel={(opt) => `${opt.name}`}
-                  value={selectedItemForAdd}
-                  onChange={(e, newValue) => {
-                    setSelectedItemForAdd(newValue);
-                    if (newValue) {
-                      handleQuickAddItem(newValue);
-                    }
-                  }}
-                  inputValue={itemSearchTerm}
-                  onInputChange={(e, newInputValue) => {
-                    setItemSearchTerm(newInputValue);
-                  }}
-                  filterOptions={(opts, state) => {
-                    const input = state.inputValue.toLowerCase();
-                    if (!input) return opts;
-                    return opts.filter(item => 
-                      item.name.toLowerCase().includes(input) || 
-                      (item.code || '').toLowerCase().includes(input)
-                    );
-                  }}
-                  noOptionsText="Sin resultados"
-                  fullWidth
-                  size="small"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Agregar producto o servicio"
-                      placeholder="Búsqueda rápida (Ctrl+K)"
-                    />
-                  )}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {option.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {option.code ? `${option.code} · ` : ''}
-                            Costo: {formatCurrency(option.purchase_price || 0)} · Venta: {formatCurrency(option.sale_price || 0)}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          label={option.type === 'service' ? 'Servicio' : 'Producto'}
-                          size="small"
-                          variant="outlined"
-                          color={option.type === 'service' ? 'secondary' : 'info'}
-                          sx={{ ml: 1, flexShrink: 0 }}
-                        />
-                      </Box>
-                    </li>
-                  )}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -925,7 +844,7 @@ function WorkOrderForm() {
         open={productSearchOpen}
         onClose={() => setProductSearchOpen(false)}
         items={items}
-        tags={tags}
+        categories={categories}
         onAddItem={handleModalAddItem}
       />
     </PageLayout>

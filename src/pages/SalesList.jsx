@@ -9,19 +9,12 @@ import {
   Grid,
   InputAdornment,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material'
 import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
+import ExcelTable from '../components/ExcelTable'
 import { salesService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel } from '../context'
@@ -50,12 +43,54 @@ const channelFilterLabels = {
   VIGIA: 'VIGIA',
 }
 
+const columns = [
+  {
+    id: 'sale_type',
+    label: 'Tipo',
+    width: 130,
+    render: (row) => (
+      <Chip
+        size="small"
+        label={saleTypeMap[row.sale_type]?.label || row.sale_type}
+        color={saleTypeMap[row.sale_type]?.color || 'default'}
+      />
+    ),
+  },
+  { id: 'number', label: 'Número', width: 140, mono: true },
+  {
+    id: 'sale_date',
+    label: 'Fecha',
+    width: 110,
+    render: (row) => formatDate(row.sale_date),
+  },
+  { id: 'customer_name', label: 'Cliente' },
+  { id: 'channel', label: 'Canal', width: 90 },
+  {
+    id: 'status',
+    label: 'Estado',
+    width: 110,
+    render: (row) => (
+      <Chip
+        size="small"
+        label={statusMap[row.status]?.label || row.status}
+        color={statusMap[row.status]?.color || 'default'}
+      />
+    ),
+  },
+  {
+    id: 'total',
+    label: 'Total',
+    align: 'right',
+    width: 120,
+    mono: true,
+    render: (row) => formatCurrency(row.total),
+  },
+]
+
 function SalesList() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [order, setOrder] = useState('desc')
-  const [orderBy, setOrderBy] = useState('sale_date')
   const { channel } = useChannel()
   const [filters, setFilters] = useState({
     search: '',
@@ -104,59 +139,6 @@ function SalesList() {
       console.error(err)
     }
   }
-
-  const getSortableValue = (row, field) => {
-    switch (field) {
-      case 'sale_type':
-        return row.sale_type || ''
-      case 'number':
-        return row.number || ''
-      case 'sale_date':
-        return row.sale_date || ''
-      case 'customer_name':
-        return row.customer_name || ''
-      case 'channel':
-        return row.channel || ''
-      case 'status':
-        return row.status || ''
-      case 'total':
-        return Number(row.total || 0)
-      default:
-        return row[field] ?? ''
-    }
-  }
-
-  const handleRequestSort = (field) => {
-    const isAsc = orderBy === field && order === 'asc'
-    setOrder(isAsc ? 'desc' : 'asc')
-    setOrderBy(field)
-  }
-
-  const sortedRows = [...rows].sort((left, right) => {
-    const leftValue = getSortableValue(left, orderBy)
-    const rightValue = getSortableValue(right, orderBy)
-
-    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return order === 'asc' ? leftValue - rightValue : rightValue - leftValue
-    }
-
-    const comparison = String(leftValue).localeCompare(String(rightValue), 'es', {
-      numeric: true,
-      sensitivity: 'base',
-    })
-
-    return order === 'asc' ? comparison : -comparison
-  })
-
-  const sortableColumns = [
-    { id: 'sale_type', label: 'Tipo' },
-    { id: 'number', label: 'Número' },
-    { id: 'sale_date', label: 'Fecha' },
-    { id: 'customer_name', label: 'Cliente' },
-    { id: 'channel', label: 'Canal' },
-    { id: 'status', label: 'Estado' },
-    { id: 'total', label: 'Total', align: 'right' },
-  ]
 
   const renderSelectValue = (value, optionsMap, emptyLabel) => {
     if (!value) {
@@ -258,72 +240,12 @@ function SalesList() {
 
       <Card>
         <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Ventas</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {rows.length} resultado{rows.length !== 1 ? 's' : ''}
-            </Typography>
-          </Box>
-
-          {rows.length === 0 ? (
-            <Typography>No hay ventas con los filtros seleccionados.</Typography>
-          ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                    {sortableColumns.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        align={column.align || 'left'}
-                        sortDirection={orderBy === column.id ? order : false}
-                        sx={{ fontWeight: 600, py: 2 }}
-                      >
-                        <TableSortLabel
-                          active={orderBy === column.id}
-                          direction={orderBy === column.id ? order : 'asc'}
-                          onClick={() => handleRequestSort(column.id)}
-                        >
-                          {column.label}
-                        </TableSortLabel>
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedRows.map((row, index) => (
-                    <TableRow
-                      key={`${row.sale_type}-${row.sale_id}`}
-                      sx={{
-                        '&:hover': { backgroundColor: 'grey.50' },
-                        borderBottom: index === sortedRows.length - 1 ? 'none' : '1px solid #e2e8f0',
-                      }}
-                    >
-                      <TableCell sx={{ py: 2.5 }}>
-                        <Chip
-                          size="small"
-                          label={saleTypeMap[row.sale_type]?.label || row.sale_type}
-                          color={saleTypeMap[row.sale_type]?.color || 'default'}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{row.number || '-'}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{formatDate(row.sale_date)}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{row.customer_name}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{row.channel}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>
-                        <Chip
-                          size="small"
-                          label={statusMap[row.status]?.label || row.status}
-                          color={statusMap[row.status]?.color || 'default'}
-                        />
-                      </TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(row.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          <ExcelTable
+            columns={columns}
+            data={rows}
+            defaultSort="sale_date"
+            defaultOrder="desc"
+          />
         </CardContent>
       </Card>
     </PageLayout>

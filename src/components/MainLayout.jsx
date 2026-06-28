@@ -29,7 +29,7 @@ import {
   AccountBalanceWallet as PaymentsReceivedIcon,
   Assessment as UtilityIcon,
   Inventory as InventoryIcon,
-  LocalOffer as TagIcon,
+  Category as CategoryIcon,
   Warehouse as WarehouseIcon,
   SwapHoriz as StockIcon,
   TrendingUp as PriceUpdateIcon,
@@ -59,7 +59,7 @@ const mainMenuItems = [
 
 const mastersMenuItems = [
   { text: 'Productos', icon: <InventoryIcon />, path: '/products' },
-  { text: 'Tags', icon: <TagIcon />, path: '/tags' },
+  { text: 'Categorías', icon: <CategoryIcon />, path: '/categories' },
   { text: 'Depósitos', icon: <WarehouseIcon />, path: '/warehouses' },
 ]
 

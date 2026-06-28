@@ -160,7 +160,7 @@ function ItemAnalysis() {
                 <MenuItem value="">Seleccionar...</MenuItem>
                 {items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
-                    {item.name} ({item.type})
+                    {item.name}
                   </MenuItem>
                 ))}
               </TextField>

@@ -37,29 +37,26 @@ import {
   TrendingUp as UpdateIcon,
   Clear as ClearIcon
 } from '@mui/icons-material'
-import { itemService, tagService } from '../services/api'
+import { itemService, categoryService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
-import TagChip from '../components/TagChip'
-import { TagMultiSelect } from '../components'
 
 function BulkPriceUpdate() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState([])
   const [filteredProducts, setFilteredProducts] = useState([])
-  const [tags, setTags] = useState([])
+  const [categories, setCategories] = useState([])
   const [selectedProducts, setSelectedProducts] = useState(new Set())
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
-  const [filterTags, setFilterTags] = useState([])
+  const [filterCategory, setFilterCategory] = useState('')
 
   // Dialog de actualización
   const [openDialog, setOpenDialog] = useState(false)
   const [updatePercentage, setUpdatePercentage] = useState('')
-  const [priceType, setPriceType] = useState('both') // 'sale', 'purchase', 'both'
-  const [updateType, setUpdateType] = useState('increase') // 'increase', 'decrease'
+  const [priceType, setPriceType] = useState('both')
+  const [updateType, setUpdateType] = useState('increase')
 
   useEffect(() => {
     loadData()
@@ -67,18 +64,18 @@ function BulkPriceUpdate() {
 
   useEffect(() => {
     applyFilters()
-  }, [products, searchTerm, filterType, filterTags])
+  }, [products, searchTerm, filterCategory])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const [productsRes, tagsRes] = await Promise.all([
+      const [productsRes, catRes] = await Promise.all([
         itemService.getAll(),
-        tagService.getAll()
+        categoryService.getAll()
       ])
       setProducts(productsRes.data)
       setFilteredProducts(productsRes.data)
-      setTags(tagsRes.data)
+      setCategories(catRes.data)
     } catch (error) {
       console.error('Error cargando datos:', error)
     } finally {
@@ -88,9 +85,7 @@ function BulkPriceUpdate() {
 
   const applyFilters = () => {
     let filtered = [...products]
-    const selectedTagIds = filterTags.map((id) => Number(id))
 
-    // Filtro de búsqueda
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       filtered = filtered.filter(p =>
@@ -99,17 +94,18 @@ function BulkPriceUpdate() {
       )
     }
 
-    // Filtro por tipo
-    if (filterType !== 'all') {
-      filtered = filtered.filter(p => p.type === filterType)
-    }
-
-    // Filtro por tag
-    // Filtro por tags (múltiples)
-    if (filterTags.length > 0) {
-      filtered = filtered.filter(p =>
-        p.tags && p.tags.some(t => selectedTagIds.includes(Number(t.id)))
-      )
+    if (filterCategory) {
+      const catId = Number(filterCategory)
+      filtered = filtered.filter(p => {
+        if (!p.category) return false
+        const productCatId = Number(p.category.id)
+        if (productCatId === catId) return true
+        const cat = categories.find(c => Number(c.id) === catId)
+        if (cat && cat.children) {
+          return cat.children.some(sub => Number(sub.id) === productCatId)
+        }
+        return false
+      })
     }
 
     setFilteredProducts(filtered)
@@ -136,8 +132,7 @@ function BulkPriceUpdate() {
 
   const handleClearFilters = () => {
     setSearchTerm('')
-    setFilterType('all')
-    setFilterTags([])
+    setFilterCategory('')
     setSelectedProducts(new Set())
   }
 
@@ -167,7 +162,6 @@ function BulkPriceUpdate() {
       const percentage = parseFloat(updatePercentage)
       const itemIds = Array.from(selectedProducts)
 
-      // Hacer un único llamado al backend para actualizar todos los precios
       await itemService.bulkUpdatePrices({
         item_ids: itemIds,
         percentage: percentage,
@@ -185,6 +179,17 @@ function BulkPriceUpdate() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getCategoryPath = (product) => {
+    if (!product.category || !product.category.id) return null
+    const cat = product.category
+    if (cat.parent_id) {
+      const parent = categories.find(c => Number(c.id) === Number(cat.parent_id))
+      if (parent) return `${parent.name} > ${cat.name}`
+      return cat.name
+    }
+    return cat.name
   }
 
   const selectedCount = selectedProducts.size
@@ -231,7 +236,7 @@ function BulkPriceUpdate() {
       {/* Filtros */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={2} alignItems="flex-start">
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={5}>
             <TextField
               fullWidth
               label="Buscar"
@@ -248,33 +253,25 @@ function BulkPriceUpdate() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FormControl fullWidth>
-              <InputLabel>Tipo</InputLabel>
+              <InputLabel>Categoría</InputLabel>
               <Select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                label="Tipo"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                label="Categoría"
               >
-                <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="PRODUCT">Producto</MenuItem>
-                <MenuItem value="SERVICE">Servicio</MenuItem>
-                <MenuItem value="EXTRA_CHARGE">Gasto Extra</MenuItem>
+                <MenuItem value="">Todas</MenuItem>
+                {categories.map((cat) => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <TagMultiSelect
-              options={tags}
-              value={filterTags}
-              onChange={setFilterTags}
-              label="Tags"
-              placeholder="Filtrar por tags"
-            />
-          </Grid>
-
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={3}>
             <Button
               fullWidth
               startIcon={<ClearIcon />}
@@ -311,8 +308,7 @@ function BulkPriceUpdate() {
               </TableCell>
               <TableCell>Código</TableCell>
               <TableCell>Nombre</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Tags</TableCell>
+              <TableCell>Categoría</TableCell>
               <TableCell align="right">Precio Costo</TableCell>
               <TableCell align="right">Precio Venta</TableCell>
               <TableCell align="right">IVA</TableCell>
@@ -321,7 +317,7 @@ function BulkPriceUpdate() {
           <TableBody>
             {filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={7} align="center">
                   <Typography color="text.secondary">
                     No se encontraron productos
                   </Typography>
@@ -345,37 +341,16 @@ function BulkPriceUpdate() {
                   <TableCell>{product.code || '-'}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>
-                    {(() => {
-                      const type = (product.type || '').toUpperCase()
-                      const typeLabel = type === 'PRODUCT'
-                        ? 'Producto'
-                        : type === 'SERVICE'
-                          ? 'Servicio'
-                          : type === 'EXTRA_CHARGE'
-                            ? 'Gasto Extra'
-                            : product.type
-
-                      const typeColor = type === 'PRODUCT'
-                        ? 'primary'
-                        : type === 'SERVICE'
-                          ? 'secondary'
-                          : 'warning'
-
-                      return (
-                    <Chip
-                      label={typeLabel}
-                      size="small"
-                      color={typeColor}
-                    />
-                      )
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={0.5}>
-                      {product.tags && product.tags.map(tag => (
-                        <TagChip key={tag.id} tag={tag} size="small" />
-                      ))}
-                    </Stack>
+                    {product.category && product.category.id ? (
+                      <Chip
+                        label={getCategoryPath(product)}
+                        size="small"
+                        variant="outlined"
+                        sx={{ bgcolor: 'rgba(25, 118, 210, 0.08)', borderColor: 'rgba(25, 118, 210, 0.25)', color: 'primary.main' }}
+                      />
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">-</Typography>
+                    )}
                   </TableCell>
                   <TableCell align="right">
                     ${product.purchase_price?.toFixed(2) || '0.00'}

@@ -9,28 +9,21 @@ import {
   Typography,
   Divider,
   Paper,
-  Stack
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material'
 import {
   Save as SaveIcon,
   ArrowBack as BackIcon,
-  LabelOutlined,
-  PaletteOutlined,
+  Category as CategoryIcon,
   Notes
 } from '@mui/icons-material'
-import { tagService } from '../services/api'
+import { categoryService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
 import FormCard from '../components/FormCard'
-
-const DEFAULT_TAG_COLOR = '#2563eb'
-
-function normalizeHexColor(value) {
-  const raw = String(value || '').trim()
-  if (!raw) return DEFAULT_TAG_COLOR
-
-  const withHash = raw.startsWith('#') ? raw : `#${raw}`
-  return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toLowerCase() : DEFAULT_TAG_COLOR
-}
 
 function SectionHeader({ icon: Icon, label }) {
   return (
@@ -66,43 +59,50 @@ function FormSection({ icon, label, children }) {
   )
 }
 
-function TagForm() {
+function CategoryForm() {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
 
-  const [tag, setTag] = useState({
+  const [category, setCategory] = useState({
     name: '',
-    description: '',
-    color: DEFAULT_TAG_COLOR
+    parent_id: null,
+    description: ''
   })
+  const [parentCategories, setParentCategories] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (isEdit) loadTag()
+    loadParentCategories()
+    if (isEdit) loadCategory()
   }, [id])
 
-  const loadTag = async () => {
+  const loadParentCategories = async () => {
+    try {
+      const response = await categoryService.getAll()
+      setParentCategories(response.data.filter(c => !c.parent_id && (!id || Number(c.id) !== Number(id))))
+    } catch (err) {
+      console.error('Error cargando categorías:', err)
+    }
+  }
+
+  const loadCategory = async () => {
     try {
       setLoading(true)
-      const response = await tagService.getById(id)
-      setTag({
-        ...response.data,
-        color: normalizeHexColor(response.data?.color)
-      })
+      const response = await categoryService.getById(id)
+      setCategory(response.data)
     } catch (err) {
-      setError('Error al cargar el tag')
+      setError('Error al cargar la categoría')
     } finally {
       setLoading(false)
     }
   }
 
   const handleChange = (e) => {
-    const { name, value } = e.target
-    setTag({
-      ...tag,
-      [name]: name === 'color' ? normalizeHexColor(value) : value
+    setCategory({
+      ...category,
+      [e.target.name]: e.target.value
     })
   }
 
@@ -112,13 +112,13 @@ function TagForm() {
       setLoading(true)
       setError(null)
       if (isEdit) {
-        await tagService.update(id, tag)
+        await categoryService.update(id, category)
       } else {
-        await tagService.create(tag)
+        await categoryService.create(category)
       }
-      navigate('/tags')
+      navigate('/categories')
     } catch (err) {
-      setError('Error al guardar tag')
+      setError('Error al guardar categoría')
     } finally {
       setLoading(false)
     }
@@ -126,15 +126,15 @@ function TagForm() {
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default', py: 3 }}>
-      <LoadingOverlay open={loading} message="Guardando tag..." />
+      <LoadingOverlay open={loading} message="Guardando categoría..." />
 
       <FormCard
-        title={isEdit ? 'Editar Tag' : 'Nuevo Tag'}
-        subtitle="Completa la información del tag"
+        title={isEdit ? 'Editar Categoría' : 'Nueva Categoría'}
+        subtitle="Completa la información de la categoría"
         headerLeft={
           <Button
             startIcon={<BackIcon />}
-            onClick={() => navigate('/tags')}
+            onClick={() => navigate('/categories')}
             variant="text"
             size="small"
             sx={{ mb: 1 }}
@@ -146,7 +146,7 @@ function TagForm() {
           <Button
             key="cancel"
             variant="outlined"
-            onClick={() => navigate('/tags')}
+            onClick={() => navigate('/categories')}
             disabled={loading}
           >
             Cancelar
@@ -160,7 +160,7 @@ function TagForm() {
             onClick={handleSubmit}
             size="large"
           >
-            Guardar Tag
+            Guardar Categoría
           </Button>
         ]}
       >
@@ -171,65 +171,38 @@ function TagForm() {
             </Alert>
           )}
 
-          <FormSection icon={LabelOutlined} label="Identificación">
-            <Grid item xs={12} sm={8}>
+          <FormSection icon={CategoryIcon} label="Identificación">
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Nombre"
                 name="name"
-                value={tag.name}
+                value={category.name}
                 onChange={handleChange}
                 required
                 variant="outlined"
                 size="small"
               />
             </Grid>
-          </FormSection>
-
-          <FormSection icon={PaletteOutlined} label="Visual">
-            <Grid item xs={12} sm={5}>
-              <TextField
-                fullWidth
-                label="Código de color"
-                name="color"
-                value={tag.color}
-                onChange={handleChange}
-                variant="outlined"
-                size="small"
-                placeholder="#2563eb"
-              />
-            </Grid>
-            <Grid item xs={12} sm={7}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    backgroundColor: tag.color
-                  }}
-                />
-                <Box
-                  component="input"
-                  type="color"
-                  name="color"
-                  value={tag.color}
-                  onChange={handleChange}
-                  sx={{
-                    width: 64,
-                    height: 38,
-                    p: 0,
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer'
-                  }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  Vista previa: {tag.color.toUpperCase()}
-                </Typography>
-              </Stack>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Categoría padre</InputLabel>
+                <Select
+                  name="parent_id"
+                  value={category.parent_id || ''}
+                  onChange={(e) => setCategory({ ...category, parent_id: e.target.value || null })}
+                  label="Categoría padre"
+                >
+                  <MenuItem value="">
+                    <Typography variant="body2" color="text.secondary">(Es categoría principal)</Typography>
+                  </MenuItem>
+                  {parentCategories.map((cat) => (
+                    <MenuItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
           </FormSection>
 
@@ -239,7 +212,7 @@ function TagForm() {
                 fullWidth
                 label="Descripción"
                 name="description"
-                value={tag.description}
+                value={category.description}
                 onChange={handleChange}
                 multiline
                 rows={3}
@@ -253,4 +226,4 @@ function TagForm() {
   )
 }
 
-export default TagForm
+export default CategoryForm

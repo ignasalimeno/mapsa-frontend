@@ -12,20 +12,13 @@ import {
   Grid,
   InputAdornment,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material'
 import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-material'
 import { invoiceService } from '../services/api'
 import { InvoicePaymentComposer, LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
+import ExcelTable from '../components/ExcelTable'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel, useConfirm, useNotify } from '../context'
 
@@ -59,12 +52,90 @@ const channelFilterLabels = {
   VIGIA: 'VIGIA',
 }
 
+const columns = [
+  {
+    id: 'id_afip',
+    label: 'N° de Factura',
+    width: 130,
+    sortValue: (row) => row.id_afip || row.number || '',
+    render: (row) => row.id_afip || '-',
+  },
+  {
+    id: 'invoice_date',
+    label: 'Fecha',
+    width: 110,
+    render: (row) => formatDate(row.invoice_date),
+  },
+  {
+    id: 'customer_name',
+    label: 'Cliente',
+    render: (row) =>
+      row.customer_number != null
+        ? `${row.customer_name} (${row.customer_number})`
+        : row.customer_name,
+  },
+  {
+    id: 'work_order_number',
+    label: 'Remito',
+    width: 100,
+    render: (row) => row.work_order_number || '-',
+  },
+  {
+    id: 'invoice_type',
+    label: 'Tipo',
+    width: 60,
+    render: (row) => typeMap[row.invoice_type] || 'B',
+  },
+  {
+    id: 'channel',
+    label: 'Canal',
+    width: 80,
+  },
+  {
+    id: 'status',
+    label: 'Estado',
+    width: 100,
+    render: (row) => (
+      <Chip
+        size="small"
+        label={statusMap[row.status]?.label || row.status}
+        color={statusMap[row.status]?.color || 'default'}
+      />
+    ),
+  },
+  {
+    id: 'total',
+    label: 'Total',
+    align: 'right',
+    width: 110,
+    mono: true,
+    sortValue: (row) => Number(row.total || 0),
+    render: (row) => formatCurrency(row.total),
+  },
+  {
+    id: 'paid_amount',
+    label: 'Pagado',
+    align: 'right',
+    width: 110,
+    mono: true,
+    sortValue: (row) => Number(row.paid_amount || 0),
+    render: (row) => formatCurrency(row.paid_amount),
+  },
+  {
+    id: 'balance',
+    label: 'Saldo',
+    align: 'right',
+    width: 110,
+    mono: true,
+    sortValue: (row) => Number(row.balance || 0),
+    render: (row) => formatCurrency(row.balance),
+  },
+]
+
 function InvoiceList() {
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [order, setOrder] = useState('desc')
-  const [orderBy, setOrderBy] = useState('invoice_date')
   const { channel } = useChannel()
   const confirm = useConfirm()
   const { error: notifyError, success: notifySuccess } = useNotify()
@@ -154,68 +225,6 @@ function InvoiceList() {
     loadInvoices()
   }
 
-  const getSortableValue = (invoice, field) => {
-    switch (field) {
-      case 'id_afip':
-        return invoice.id_afip || invoice.number || ''
-      case 'invoice_date':
-        return invoice.invoice_date || ''
-      case 'customer_name':
-        return invoice.customer_name || ''
-      case 'work_order_number':
-        return invoice.work_order_number || ''
-      case 'invoice_type':
-        return invoice.invoice_type || ''
-      case 'channel':
-        return invoice.channel || ''
-      case 'status':
-        return invoice.status || ''
-      case 'total':
-        return Number(invoice.total || 0)
-      case 'paid_amount':
-        return Number(invoice.paid_amount || 0)
-      case 'balance':
-        return Number(invoice.balance || 0)
-      default:
-        return invoice[field] ?? ''
-    }
-  }
-
-  const handleRequestSort = (field) => {
-    const isAsc = orderBy === field && order === 'asc'
-    setOrder(isAsc ? 'desc' : 'asc')
-    setOrderBy(field)
-  }
-
-  const sortedInvoices = [...invoices].sort((left, right) => {
-    const leftValue = getSortableValue(left, orderBy)
-    const rightValue = getSortableValue(right, orderBy)
-
-    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return order === 'asc' ? leftValue - rightValue : rightValue - leftValue
-    }
-
-    const comparison = String(leftValue).localeCompare(String(rightValue), 'es', {
-      numeric: true,
-      sensitivity: 'base',
-    })
-
-    return order === 'asc' ? comparison : -comparison
-  })
-
-  const sortableColumns = [
-    { id: 'id_afip', label: 'N° de Factura' },
-    { id: 'invoice_date', label: 'Fecha' },
-    { id: 'customer_name', label: 'Cliente' },
-    { id: 'work_order_number', label: 'Remito' },
-    { id: 'invoice_type', label: 'Tipo' },
-    { id: 'channel', label: 'Canal' },
-    { id: 'status', label: 'Estado' },
-    { id: 'total', label: 'Total', align: 'right' },
-    { id: 'paid_amount', label: 'Pagado', align: 'right' },
-    { id: 'balance', label: 'Saldo', align: 'right' },
-  ]
-
   const renderSelectValue = (value, optionsMap, emptyLabel) => {
     if (!value) {
       return <Box component="span" sx={{ color: 'text.secondary' }}>{emptyLabel}</Box>
@@ -223,6 +232,19 @@ function InvoiceList() {
 
     return optionsMap[value] || value
   }
+
+  const renderActions = (invoice) => (
+    <Box display="flex" gap={1} justifyContent="center">
+      <Button variant="outlined" size="small" onClick={() => handleOpenPayments(invoice)}>
+        Pagos
+      </Button>
+      <TableActionIconButton
+        kind="delete"
+        onClick={() => handleDelete(invoice)}
+        ariaLabel={`Eliminar factura ${invoice.id_afip || invoice.id}`}
+      />
+    </Box>
+  )
 
   return (
     <PageLayout title="Facturas" subtitle="Listado de facturas con filtros y exportación CSV">
@@ -335,88 +357,14 @@ function InvoiceList() {
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6">Facturas</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {invoices.length} resultado{invoices.length !== 1 ? 's' : ''}
-            </Typography>
           </Box>
-
-          {invoices.length === 0 ? (
-            <Typography>No hay facturas con los filtros seleccionados.</Typography>
-          ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                    {sortableColumns.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        align={column.align || 'left'}
-                        sortDirection={orderBy === column.id ? order : false}
-                        sx={{ fontWeight: 600, py: 2 }}
-                      >
-                        <TableSortLabel
-                          active={orderBy === column.id}
-                          direction={orderBy === column.id ? order : 'asc'}
-                          onClick={() => handleRequestSort(column.id)}
-                        >
-                          {column.label}
-                        </TableSortLabel>
-                      </TableCell>
-                    ))}
-                    <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedInvoices.map((invoice, index) => (
-                    <TableRow
-                      key={invoice.id}
-                      sx={{
-                        '&:hover': { backgroundColor: 'grey.50' },
-                        borderBottom: index === sortedInvoices.length - 1 ? 'none' : '1px solid #e2e8f0',
-                      }}
-                    >
-                      <TableCell sx={{ py: 2.5 }}>{invoice.id_afip || '-'}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{formatDate(invoice.invoice_date)}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>
-                        {invoice.customer_number !== null && invoice.customer_number !== undefined
-                          ? `${invoice.customer_name} (${invoice.customer_number})`
-                          : invoice.customer_name}
-                      </TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{invoice.work_order_number || '-'}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{typeMap[invoice.invoice_type] || 'B'}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>{invoice.channel}</TableCell>
-                      <TableCell sx={{ py: 2.5 }}>
-                        <Chip
-                          size="small"
-                          label={statusMap[invoice.status]?.label || invoice.status}
-                          color={statusMap[invoice.status]?.color || 'default'}
-                        />
-                      </TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.total)}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.paid_amount)}</TableCell>
-                      <TableCell align="right" sx={{ py: 2.5 }}>{formatCurrency(invoice.balance)}</TableCell>
-                      <TableCell align="center" sx={{ py: 2.5 }}>
-                        <Box display="flex" gap={1} justifyContent="center">
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleOpenPayments(invoice)}
-                          >
-                            Pagos
-                          </Button>
-                          <TableActionIconButton
-                            kind="delete"
-                            onClick={() => handleDelete(invoice)}
-                            ariaLabel={`Eliminar factura ${invoice.id_afip || invoice.id}`}
-                          />
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          <ExcelTable
+            columns={columns}
+            data={invoices}
+            defaultSort="invoice_date"
+            defaultOrder="desc"
+            actions={renderActions}
+          />
         </CardContent>
       </Card>
 

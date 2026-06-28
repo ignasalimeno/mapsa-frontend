@@ -13,14 +13,18 @@ import {
   Typography,
   InputAdornment,
   Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material'
 import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material'
 import { StyledDialog } from '.'
 import { formatCurrency } from '../utils/formatters'
 
-function ProductSearchModal({ open, onClose, items, tags, onAddItem }) {
+function ProductSearchModal({ open, onClose, items, categories, onAddItem }) {
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTag, setSelectedTag] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState('')
 
   const filteredItems = useMemo(() => {
     let result = items
@@ -31,17 +35,25 @@ function ProductSearchModal({ open, onClose, items, tags, onAddItem }) {
         (item.code || '').toLowerCase().includes(term)
       )
     }
-    if (selectedTag) {
-      result = result.filter(item =>
-        (item.tags || []).some(t => Number(t.id) === Number(selectedTag))
-      )
+    if (selectedCategory) {
+      const catId = Number(selectedCategory)
+      result = result.filter(item => {
+        if (!item.category) return false
+        const productCatId = Number(item.category.id)
+        if (productCatId === catId) return true
+        const cat = categories.find(c => Number(c.id) === catId)
+        if (cat && cat.children) {
+          return cat.children.some(sub => Number(sub.id) === productCatId)
+        }
+        return false
+      })
     }
     return result
-  }, [items, searchTerm, selectedTag])
+  }, [items, searchTerm, selectedCategory])
 
   const handleClose = () => {
     setSearchTerm('')
-    setSelectedTag(null)
+    setSelectedCategory('')
     onClose()
   }
 
@@ -70,21 +82,21 @@ function ProductSearchModal({ open, onClose, items, tags, onAddItem }) {
       />
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
-        <Chip
-          label="Todas"
-          variant={selectedTag === null ? 'filled' : 'outlined'}
-          color="primary"
-          onClick={() => setSelectedTag(null)}
-        />
-        {tags.map((tag) => (
-          <Chip
-            key={tag.id}
-            label={tag.name}
-            variant={selectedTag === tag.id ? 'filled' : 'outlined'}
-            color="primary"
-            onClick={() => setSelectedTag(selectedTag === tag.id ? null : tag.id)}
-          />
-        ))}
+        <FormControl size="small" sx={{ minWidth: 250 }}>
+          <InputLabel>Categoría</InputLabel>
+          <Select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            label="Categoría"
+          >
+            <MenuItem value="">Todas</MenuItem>
+            {categories.map((cat) => (
+              <MenuItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       <TableContainer component={Paper} variant="outlined">
@@ -93,7 +105,7 @@ function ProductSearchModal({ open, onClose, items, tags, onAddItem }) {
             <TableRow sx={{ backgroundColor: 'grey.50' }}>
               <TableCell sx={{ fontWeight: 600 }}>Producto</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Código</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Tipo</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Categoría</TableCell>
               <TableCell align="right" sx={{ fontWeight: 600 }}>Costo</TableCell>
               <TableCell align="right" sx={{ fontWeight: 600 }}>Precio Venta</TableCell>
               <TableCell align="center" sx={{ fontWeight: 600 }}>Acción</TableCell>
@@ -104,7 +116,7 @@ function ProductSearchModal({ open, onClose, items, tags, onAddItem }) {
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                   <Typography color="text.secondary">
-                    {searchTerm || selectedTag
+                    {searchTerm || selectedCategory
                       ? 'No se encontraron productos con esos filtros'
                       : 'No hay productos disponibles'}
                   </Typography>
@@ -121,30 +133,21 @@ function ProductSearchModal({ open, onClose, items, tags, onAddItem }) {
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {item.name}
                     </Typography>
-                    {item.tags && item.tags.length > 0 && (
-                      <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-                        {item.tags.map((tag) => (
-                          <Chip
-                            key={tag.id}
-                            label={tag.name}
-                            size="small"
-                            variant="outlined"
-                            sx={{ height: 18, fontSize: '0.65rem' }}
-                          />
-                        ))}
-                      </Box>
-                    )}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">{item.code || '-'}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={item.type === 'service' ? 'Servicio' : 'Producto'}
-                      color={item.type === 'service' ? 'secondary' : 'info'}
-                      size="small"
-                      variant="outlined"
-                    />
+                    {item.category && item.category.id ? (
+                      <Chip
+                        label={item.category.name}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: '0.65rem' }}
+                      />
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">-</Typography>
+                    )}
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2">

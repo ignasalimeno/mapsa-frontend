@@ -3,12 +3,6 @@ import {
   Box,
   Paper,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   MenuItem,
   Button,
@@ -17,6 +11,17 @@ import {
 import { ArrowBack as BackIcon } from '@mui/icons-material'
 import { itemService, stockService, warehouseService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
+import ExcelTable from '../components/ExcelTable'
+
+const columns = [
+  { id: 'created_at', label: 'Fecha', sortable: true },
+  { id: 'movement_type', label: 'Tipo', sortable: true },
+  { id: 'item_name', label: 'Producto', sortable: true },
+  { id: 'warehouse_from_name', label: 'Desde', sortable: true, render: (row) => row.warehouse_from_name || '-' },
+  { id: 'warehouse_to_name', label: 'Hacia', sortable: true, render: (row) => row.warehouse_to_name || '-' },
+  { id: 'quantity', label: 'Cantidad', align: 'right', sortable: true },
+  { id: 'notes', label: 'Notas', sortable: false, render: (row) => row.notes || '-' },
+]
 
 function StockMovements() {
   const [loading, setLoading] = useState(true)
@@ -101,34 +106,7 @@ function StockMovements() {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.100' }}>
-              <TableCell><strong>Fecha</strong></TableCell>
-              <TableCell><strong>Tipo</strong></TableCell>
-              <TableCell><strong>Producto</strong></TableCell>
-              <TableCell><strong>Desde</strong></TableCell>
-              <TableCell><strong>Hacia</strong></TableCell>
-              <TableCell align="right"><strong>Cantidad</strong></TableCell>
-              <TableCell><strong>Notas</strong></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {movements.map(m => (
-              <TableRow key={m.id_movement} hover>
-                <TableCell>{m.created_at}</TableCell>
-                <TableCell>{m.movement_type}</TableCell>
-                <TableCell>{m.item_name}</TableCell>
-                <TableCell>{m.warehouse_from_name || '-'}</TableCell>
-                <TableCell>{m.warehouse_to_name || '-'}</TableCell>
-                <TableCell align="right">{m.quantity}</TableCell>
-                <TableCell>{m.notes || '-'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <ExcelTable columns={columns} data={movements} defaultSort="created_at" defaultOrder="desc" />
     </Box>
   )
 }

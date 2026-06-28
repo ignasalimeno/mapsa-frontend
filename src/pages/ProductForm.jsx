@@ -13,55 +13,19 @@ import {
 } from '@mui/material'
 import {
   Save as SaveIcon,
-  ArrowBack as BackIcon,
-  Inventory2,
-  LocalOffer,
-  Sell
+  ArrowBack as BackIcon
 } from '@mui/icons-material'
-import { itemService, tagService } from '../services/api'
+import { itemService, categoryService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
-import FormCard from '../components/FormCard'
-import { TagMultiSelect } from '../components'
+import { CategorySelect } from '../components'
 
-function SectionHeader({ icon: Icon, label }) {
-  return (
-    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
-      <Typography
-        variant="overline"
-        sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}
-      >
-        {label}
-      </Typography>
-    </Stack>
-  )
-}
-
-function FormSection({ icon, label, children }) {
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        p: 2.5,
-        borderRadius: 2,
-        borderColor: 'divider',
-        backgroundColor: 'background.paper'
-      }}
-    >
-      <SectionHeader icon={icon} label={label} />
-      <Divider sx={{ mb: 2 }} />
-      <Grid container spacing={2}>
-        {children}
-      </Grid>
-    </Paper>
-  )
-}
+const BORDER = '1px solid #d4d4d4'
 
 function ProductForm() {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
-  
+
   const [product, setProduct] = useState({
     code: '',
     name: '',
@@ -70,39 +34,40 @@ function ProductForm() {
     purchase_price: 0,
     sale_price: 0,
     unit: 'unidad',
-    iva_rate: 21.00
+    iva_rate: 21.00,
+    id_category: null
   })
-  
-  const [selectedTags, setSelectedTags] = useState([])
-  const [availableTags, setAvailableTags] = useState([])
+
+  const [categories, setCategories] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    loadTags()
+    loadCategories()
     if (isEdit) {
       loadProduct()
     }
   }, [id])
 
-  const loadTags = async () => {
+  const loadCategories = async () => {
     try {
-      const response = await tagService.getAll()
-      setAvailableTags(response.data)
+      const response = await categoryService.getAll()
+      setCategories(response.data)
     } catch (err) {
-      console.error('Error cargando tags:', err)
+      console.error('Error cargando categorías:', err)
     }
   }
 
   const loadProduct = async () => {
     try {
       setLoading(true)
-      const [productRes, tagsRes] = await Promise.all([
+      const [productRes, catRes] = await Promise.all([
         itemService.getById(id),
-        tagService.getItemTags(id)
+        categoryService.getItemCategory(id)
       ])
       setProduct(productRes.data)
-      setSelectedTags(tagsRes.data)
+      setSelectedCategory(catRes.data || null)
     } catch (err) {
       setError('Error al cargar el producto')
       console.error(err)
@@ -118,49 +83,29 @@ function ProductForm() {
     })
   }
 
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category)
+    setProduct(prev => ({
+      ...prev,
+      id_category: category ? category.id : null
+    }))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
       setLoading(true)
       setError(null)
-      
-      let savedProduct
+
       if (isEdit) {
-        const response = await itemService.update(id, product)
-        savedProduct = response.data
+        await itemService.update(id, product)
       } else {
         const response = await itemService.create(product)
-        savedProduct = response.data
+        if (selectedCategory && response.data) {
+          await categoryService.assignToItem(response.data.id, { id_category: selectedCategory.id })
+        }
       }
-      
-      // Actualizar tags
-      if (isEdit) {
-        // Obtener tags actuales
-        const currentTagsRes = await tagService.getItemTags(id)
-        const currentTags = currentTagsRes.data
-        
-        // Tags a agregar
-        const tagsToAdd = selectedTags.filter(
-          tag => !currentTags.find(ct => ct.id === tag.id)
-        )
-        
-        // Tags a remover
-        const tagsToRemove = currentTags.filter(
-          tag => !selectedTags.find(st => st.id === tag.id)
-        )
-        
-        // Ejecutar cambios
-        await Promise.all([
-          ...tagsToAdd.map(tag => tagService.assignToItem(id, tag.id)),
-          ...tagsToRemove.map(tag => tagService.removeFromItem(id, tag.id))
-        ])
-      } else if (savedProduct) {
-        // Asignar tags al nuevo producto
-        await Promise.all(
-          selectedTags.map(tag => tagService.assignToItem(savedProduct.id, tag.id))
-        )
-      }
-      
+
       navigate('/products')
     } catch (err) {
       console.error('Error al guardar:', err)
@@ -174,169 +119,185 @@ function ProductForm() {
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default', py: 3 }}>
       <LoadingOverlay open={loading} message="Guardando producto..." />
 
-      <FormCard
-        title={isEdit ? 'Editar Producto' : 'Nuevo Producto'}
-        subtitle={isEdit ? 'Modifica los datos del producto' : 'Completa la información del producto'}
-        headerLeft={
-          <Button
-            startIcon={<BackIcon />}
-            onClick={() => navigate('/products')}
-            variant="text"
-            size="small"
-            sx={{ mb: 1 }}
-          >
-            Volver
-          </Button>
-        }
-        actions={[
-          <Button
-            key="cancel"
-            variant="outlined"
-            onClick={() => navigate('/products')}
-            disabled={loading}
-          >
-            Cancelar
-          </Button>,
-          <Button
-            key="save"
-            type="submit"
-            variant="contained"
-            startIcon={<SaveIcon />}
-            disabled={loading}
-            onClick={handleSubmit}
-            size="large"
-          >
-            Guardar Producto
-          </Button>
-        ]}
+      <Box
+        component="form"
+        noValidate
+        onSubmit={handleSubmit}
+        sx={{ maxWidth: 800, mx: 'auto', mt: 2 }}
       >
+        {/* Header */}
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Button
+              startIcon={<BackIcon />}
+              onClick={() => navigate('/products')}
+              variant="text"
+              size="small"
+              sx={{ mb: 0.5, color: '#555', fontWeight: 500, textTransform: 'none', pl: 0, '&:hover': { bgcolor: 'transparent', color: '#000' } }}
+            >
+              Volver a Productos
+            </Button>
+            <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>
+              {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/products')}
+              disabled={loading}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<SaveIcon />}
+              disabled={loading}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Guardar
+            </Button>
+          </Stack>
+        </Box>
+
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ mb: 3, borderRadius: 2 }}
-          >
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 0, border: BORDER }}>
             {error}
           </Alert>
         )}
 
-        <Stack spacing={2.5}>
-          <FormSection icon={Inventory2} label="Información">
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Código"
-                name="code"
-                value={product.code}
-                onChange={handleChange}
-                variant="outlined"
-                placeholder="PROD-001"
-                size="small"
-              />
+        {/* Información general */}
+        <Paper sx={{ border: BORDER, borderRadius: 0, mb: 2 }}>
+          <Box sx={{ backgroundColor: '#f0f0f0', px: 2, py: 1, borderBottom: BORDER }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#444' }}>
+              Información General
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Código"
+                  name="code"
+                  value={product.code}
+                  onChange={handleChange}
+                  placeholder="PROD-001"
+                  size="small"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextField
+                  fullWidth
+                  label="Nombre"
+                  name="name"
+                  value={product.name}
+                  onChange={handleChange}
+                  required
+                  size="small"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Descripción"
+                  name="description"
+                  value={product.description}
+                  onChange={handleChange}
+                  multiline
+                  rows={2}
+                  size="small"
+                  variant="outlined"
+                  placeholder="Detalles del producto..."
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nombre"
-                name="name"
-                value={product.name}
-                onChange={handleChange}
-                required
-                variant="outlined"
-                size="small"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    fontWeight: 500
-                  }
-                }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Descripción"
-                name="description"
-                value={product.description}
-                onChange={handleChange}
-                multiline
-                rows={3}
-                variant="outlined"
-                placeholder="Detalles del producto..."
-              />
-            </Grid>
-          </FormSection>
+          </Box>
+        </Paper>
 
-          <FormSection icon={Sell} label="Precios">
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="Costo"
-                name="purchase_price"
-                type="number"
-                value={product.purchase_price}
-                onChange={handleChange}
-                variant="outlined"
-                size="small"
-                placeholder="0.00"
-                InputProps={{
-                  startAdornment: <Box sx={{ mr: 1, color: 'text.secondary', fontSize: '0.9rem' }}>$</Box>
-                }}
-              />
+        {/* Precios */}
+        <Paper sx={{ border: BORDER, borderRadius: 0, mb: 2 }}>
+          <Box sx={{ backgroundColor: '#f0f0f0', px: 2, py: 1, borderBottom: BORDER }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#444' }}>
+              Precios
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Costo"
+                  name="purchase_price"
+                  type="number"
+                  value={product.purchase_price}
+                  onChange={handleChange}
+                  size="small"
+                  placeholder="0.00"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: <Box sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>$</Box>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Precio de Venta"
+                  name="sale_price"
+                  type="number"
+                  value={product.sale_price}
+                  onChange={handleChange}
+                  required
+                  size="small"
+                  placeholder="0.00"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: <Box sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>$</Box>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="IVA"
+                  name="iva_rate"
+                  type="number"
+                  value={product.iva_rate}
+                  onChange={handleChange}
+                  size="small"
+                  placeholder="21"
+                  variant="outlined"
+                  InputProps={{
+                    endAdornment: <Box sx={{ ml: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>%</Box>
+                  }}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="Venta"
-                name="sale_price"
-                type="number"
-                value={product.sale_price}
-                onChange={handleChange}
-                required
-                variant="outlined"
-                size="small"
-                placeholder="0.00"
-                InputProps={{
-                  startAdornment: <Box sx={{ mr: 1, color: 'text.secondary', fontSize: '0.9rem', fontWeight: 600 }}>$</Box>
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-input': {
-                    fontWeight: 600
-                  }
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="IVA"
-                name="iva_rate"
-                type="number"
-                value={product.iva_rate}
-                onChange={handleChange}
-                variant="outlined"
-                size="small"
-                placeholder="21"
-                InputProps={{
-                  endAdornment: <Box sx={{ ml: 1, color: 'text.secondary', fontSize: '0.9rem' }}>%</Box>
-                }}
-              />
-            </Grid>
-          </FormSection>
+          </Box>
+        </Paper>
 
-          <FormSection icon={LocalOffer} label="Etiquetas">
-            <Grid item xs={12}>
-              <TagMultiSelect
-                options={availableTags}
-                value={selectedTags}
-                onChange={setSelectedTags}
-                mode="objects"
-                label="Tags"
-                placeholder="Busca y agrega tags..."
-                sx={{ width: '100%' }}
-              />
-            </Grid>
-          </FormSection>
-        </Stack>
-      </FormCard>
+        {/* Categoría */}
+        <Paper sx={{ border: BORDER, borderRadius: 0 }}>
+          <Box sx={{ backgroundColor: '#f0f0f0', px: 2, py: 1, borderBottom: BORDER }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#444' }}>
+              Categoría
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <CategorySelect
+              categories={categories}
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              label="Categoría"
+            />
+          </Box>
+        </Paper>
+      </Box>
     </Box>
   )
 }

@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Box,
   Button,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -25,6 +16,13 @@ import { itemService, stockService, warehouseService } from '../services/api'
 import { LoadingOverlay, PageLayout } from '../components'
 import StockBadge from '../components/StockBadge'
 import { formatCurrency } from '../utils/formatters'
+import ExcelTable from '../components/ExcelTable'
+
+const columns = [
+  { id: 'name', label: 'Producto', sortable: true },
+  { id: 'sale_price', label: 'Precio', align: 'right', sortable: true, render: (row) => formatCurrency(row.sale_price) },
+  { id: 'total_quantity', label: 'Stock Total', align: 'center', sortable: true, render: (row) => <StockBadge quantity={row.total_quantity} /> },
+]
 
 function StockOverview() {
   const navigate = useNavigate()
@@ -124,30 +122,8 @@ function StockOverview() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.100' }}>
-              <TableCell><strong>Producto</strong></TableCell>
-              <TableCell align="right"><strong>Precio</strong></TableCell>
-              <TableCell align="center"><strong>Stock Total</strong></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {stock.map(row => (
-              <TableRow key={row.id} hover>
-                <TableCell>{row.name}</TableCell>
-                <TableCell align="right">{formatCurrency(row.sale_price)}</TableCell>
-                <TableCell align="center">
-                  <StockBadge quantity={row.total_quantity} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <ExcelTable columns={columns} data={stock} defaultSort="name" />
 
-      {/* Dialog Ajuste */}
       <Dialog open={adjustOpen} onClose={() => setAdjustOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Ajustar Stock</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
@@ -196,7 +172,6 @@ function StockOverview() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog Transferencia */}
       <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Transferir Stock</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>

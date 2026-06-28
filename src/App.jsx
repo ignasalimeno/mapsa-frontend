@@ -16,13 +16,10 @@ import WorkOrderDetail from './pages/WorkOrderDetail'
 import AccountList from './pages/AccountList'
 import AccountDetail from './pages/AccountDetail'
 import ProductList from './pages/ProductList'
-import ProductForm from './pages/ProductForm'
 import ProductDetail from './pages/ProductDetail'
 import ProductStock from './pages/ProductStock'
-import TagList from './pages/TagList'
-import TagForm from './pages/TagForm'
+import CategoryList from './pages/CategoryList'
 import WarehouseList from './pages/WarehouseList'
-import WarehouseForm from './pages/WarehouseForm'
 import WarehouseStock from './pages/WarehouseStock'
 import StockOverview from './pages/StockOverview'
 import StockMovements from './pages/StockMovements'
@@ -60,17 +57,11 @@ function App() {
             <Route path="/account" element={<AccountList />} />
             <Route path="/customers/:id/account" element={<AccountDetail />} />
             <Route path="/products" element={<ProductList />} />
-            <Route path="/products/new" element={<ProductForm />} />
-            <Route path="/products/edit/:id" element={<ProductForm />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/products/:id/stock" element={<ProductStock />} />
             <Route path="/products/bulk-price-update" element={<BulkPriceUpdate />} />
-            <Route path="/tags" element={<TagList />} />
-            <Route path="/tags/new" element={<TagForm />} />
-            <Route path="/tags/edit/:id" element={<TagForm />} />
+            <Route path="/categories" element={<CategoryList />} />
             <Route path="/warehouses" element={<WarehouseList />} />
-            <Route path="/warehouses/new" element={<WarehouseForm />} />
-            <Route path="/warehouses/edit/:id" element={<WarehouseForm />} />
             <Route path="/warehouses/:id/stock" element={<WarehouseStock />} />
             <Route path="/stock" element={<StockOverview />} />
             <Route path="/stock/movements" element={<StockMovements />} />

@@ -127,18 +127,18 @@ export const utilityService = {
   list: (params) => api.get('/utilities', { params }),
 }
 
-// Tags
-export const tagService = {
-  getAll: () => api.get('/tags'),
-  getById: (id) => api.get(`/tags/${id}`),
-  create: (data) => api.post('/tags', data),
-  update: (id, data) => api.put(`/tags/${id}`, data),
-  delete: (id) => api.delete(`/tags/${id}`),
-  getItems: (id) => api.get(`/tags/${id}/items`),
-  assignToItem: (itemId, tagId) => api.post(`/items/${itemId}/tags/${tagId}`),
-  removeFromItem: (itemId, tagId) => api.delete(`/items/${itemId}/tags/${tagId}`),
-  getItemTags: (itemId) => api.get(`/items/${itemId}/tags`),
-  bulkUpdatePrices: (tagId, data) => api.post(`/tags/${tagId}/update-prices`, data),
+// Categories
+export const categoryService = {
+  getAll: () => api.get('/categories'),
+  getById: (id) => api.get(`/categories/${id}`),
+  create: (data) => api.post('/categories', data),
+  update: (id, data) => api.put(`/categories/${id}`, data),
+  delete: (id) => api.delete(`/categories/${id}`),
+  getItems: (id) => api.get(`/categories/${id}/items`),
+  getItemCategory: (itemId) => api.get(`/items/${itemId}/category`),
+  assignToItem: (itemId, data) => api.put(`/items/${itemId}/category`, data),
+  removeFromItem: (itemId) => api.delete(`/items/${itemId}/category`),
+  bulkUpdatePrices: (categoryId, data) => api.post(`/categories/${categoryId}/update-prices`, data),
 }
 
 // Warehouses

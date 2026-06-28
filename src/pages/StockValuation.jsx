@@ -8,18 +8,21 @@ import {
   Grid,
   MenuItem,
   TextField,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material'
 import { PageLayout } from '../components'
 import { stockService } from '../services/api'
 import { formatCurrency, formatNumber } from '../utils/formatters'
+import ExcelTable from '../components/ExcelTable'
+
+const columns = [
+  { id: 'name', label: 'Producto', sortable: true },
+  { id: 'total_quantity', label: 'Stock', align: 'right', sortable: true, render: (row) => formatNumber(row.total_quantity, false) },
+  { id: 'purchase_price', label: 'Costo unitario', align: 'right', sortable: true, render: (row) => formatCurrency(row.purchase_price) },
+  { id: 'sale_price', label: 'Venta unitaria', align: 'right', sortable: true, render: (row) => formatCurrency(row.sale_price) },
+  { id: 'cost_valuation', label: 'Valorizado costo', align: 'right', sortable: true, render: (row) => formatCurrency(row.cost_valuation) },
+  { id: 'sale_valuation', label: 'Valorizado venta', align: 'right', sortable: true, render: (row) => formatCurrency(row.sale_valuation) },
+]
 
 function StockValuation() {
   const [loading, setLoading] = useState(true)
@@ -111,35 +114,8 @@ function StockValuation() {
 
           {loading ? (
             <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
-          ) : data.items.length === 0 ? (
-            <Typography>No hay productos para valorizar.</Typography>
           ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Producto</TableCell>
-                    <TableCell align="right">Stock</TableCell>
-                    <TableCell align="right">Costo unitario</TableCell>
-                    <TableCell align="right">Venta unitaria</TableCell>
-                    <TableCell align="right">Valorizado costo</TableCell>
-                    <TableCell align="right">Valorizado venta</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell align="right">{formatNumber(item.total_quantity, false)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.purchase_price)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.sale_price)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.cost_valuation)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.sale_valuation)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <ExcelTable columns={columns} data={data.items} defaultSort="name" emptyMessage="No hay productos para valorizar." />
           )}
         </CardContent>
       </Card>

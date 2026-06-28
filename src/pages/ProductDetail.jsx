@@ -7,12 +7,12 @@ import {
   Paper,
   Typography,
   Stack,
-  Divider
+  Divider,
+  Chip
 } from '@mui/material'
 import { ArrowBack as BackIcon, Edit as EditIcon } from '@mui/icons-material'
-import { itemService, tagService, stockService } from '../services/api'
+import { itemService, categoryService, stockService } from '../services/api'
 import LoadingOverlay from '../components/LoadingOverlay'
-import TagChip from '../components/TagChip'
 import StockBadge from '../components/StockBadge'
 import PriceDisplay from '../components/PriceDisplay'
 
@@ -21,7 +21,7 @@ function ProductDetail() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [product, setProduct] = useState(null)
-  const [tags, setTags] = useState([])
+  const [category, setCategory] = useState(null)
   const [stockByWarehouse, setStockByWarehouse] = useState([])
 
   useEffect(() => {
@@ -31,13 +31,13 @@ function ProductDetail() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [productRes, tagsRes, stockRes] = await Promise.all([
+      const [productRes, catRes, stockRes] = await Promise.all([
         itemService.getById(id),
-        tagService.getItemTags(id),
+        categoryService.getItemCategory(id),
         stockService.getByItem(id)
       ])
       setProduct(productRes.data)
-      setTags(tagsRes.data)
+      setCategory(catRes.data)
       setStockByWarehouse(stockRes.data)
     } catch (error) {
       console.error('Error cargando producto:', error)
@@ -188,21 +188,22 @@ function ProductDetail() {
           </Paper>
         </Grid>
 
-        {/* Tags */}
+        {/* Categoría */}
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Tags
+              Categoría
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {tags.length === 0 ? (
-                <Typography color="text.secondary">Sin tags</Typography>
-              ) : (
-                tags.map(tag => (
-                  <TagChip key={tag.id} tag={tag} />
-                ))
-              )}
-            </Stack>
+            {category && category.id ? (
+              <Chip
+                label={category.name}
+                size="medium"
+                color="primary"
+                variant="outlined"
+              />
+            ) : (
+              <Typography color="text.secondary">Sin categoría</Typography>
+            )}
           </Paper>
         </Grid>
 
