@@ -59,8 +59,8 @@ function VehicleDetail() {
 
   return (
     <PageLayout
-      title={`Vehículo ${vehicle.brand} ${vehicle.model}`}
-      subtitle={`Patente ${vehicle.plate || vehicle.license_plate || '-'}`}
+      title={`Vehículo ${vehicle.brand || vehicle.model || vehicle.plate || vehicle.internal_number || ''}`}
+      subtitle={`Patente ${vehicle.plate || '-'}${vehicle.internal_number ? ` — N° Interno: ${vehicle.internal_number}` : ''}`}
       onBack={() => navigate(-1)}
       actions={(
         <Button variant="outlined" onClick={() => navigate(`/customers/${vehicle.customer_id}`)}>
@@ -86,7 +86,8 @@ function VehicleDetail() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Typography><strong>Año:</strong> {vehicle.year || 'No especificado'}</Typography>
-                  <Typography><strong>Patente:</strong> {vehicle.plate || vehicle.license_plate || 'No especificada'}</Typography>
+                  <Typography><strong>Patente:</strong> {vehicle.plate || 'No especificada'}</Typography>
+                  <Typography><strong>N° Interno:</strong> {vehicle.internal_number || 'No especificado'}</Typography>
                   <Typography><strong>Kilómetros:</strong> {formatNumber(vehicle.current_km || 0)}</Typography>
                   <Typography><strong>Notas:</strong> {vehicle.notes || 'Sin notas'}</Typography>
                 </Grid>
@@ -133,7 +134,7 @@ function VehicleDetail() {
                           }}
                         >
                           <TableCell sx={{ py: 2.5 }}>{workOrder.external_id || '-'}</TableCell>
-                          <TableCell sx={{ py: 2.5 }}>{vehicle.plate || vehicle.license_plate || '-'}</TableCell>
+                          <TableCell sx={{ py: 2.5 }}>{vehicle.plate || '-'}</TableCell>
                           <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
                           <TableCell sx={{ py: 2.5 }}>
                             <Chip

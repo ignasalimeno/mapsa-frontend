@@ -97,9 +97,12 @@ function CustomerDetail() {
 
   // Estados para modales
   const [vehicleDialog, setVehicleDialog] = useState(false);
+  const [vehicleDialogMode, setVehicleDialogMode] = useState('create');
+  const [editVehicle, setEditVehicle] = useState(null);
   const [newVehicle, setNewVehicle] = useState({
     brand: "",
     model: "",
+    internal_number: "",
     year: "",
     plate: "",
     engine: "",
@@ -152,31 +155,66 @@ function CustomerDetail() {
     }
   };
 
-  const handleCreateVehicle = async () => {
+  const resetVehicleForm = () => {
+    setNewVehicle({
+      brand: "",
+      model: "",
+      internal_number: "",
+      year: "",
+      plate: "",
+      engine: "",
+      vin: "",
+      current_km: "",
+      notes: "",
+    });
+    setEditVehicle(null);
+    setVehicleDialogMode('create');
+  };
+
+  const handleSaveVehicle = async () => {
     try {
-      await vehicleService.create({
+      const payload = {
         ...newVehicle,
         id_customer: parseInt(id),
         year: newVehicle.year ? parseInt(newVehicle.year) : null,
         current_km: newVehicle.current_km ? parseInt(newVehicle.current_km) : 0,
-      });
+      };
+      if (vehicleDialogMode === 'create') {
+        await vehicleService.create(payload);
+        notifySuccess('Vehículo agregado correctamente');
+      } else if (editVehicle) {
+        await vehicleService.update(editVehicle.id, payload);
+        notifySuccess('Vehículo actualizado correctamente');
+      }
       setVehicleDialog(false);
-      setNewVehicle({
-        brand: "",
-        model: "",
-        year: "",
-        plate: "",
-        engine: "",
-        vin: "",
-        current_km: "",
-        notes: "",
-      });
+      resetVehicleForm();
       await loadCustomerData();
-      notifySuccess('Vehículo agregado correctamente');
     } catch (err) {
-      console.error("Error al crear vehículo:", err);
-      notifyError('No se pudo crear el vehículo');
+      console.error("Error al guardar vehículo:", err);
+      notifyError('No se pudo guardar el vehículo');
     }
+  };
+
+  const handleOpenEdit = (vehicle) => {
+    setEditVehicle(vehicle);
+    setNewVehicle({
+      brand: vehicle.brand || "",
+      model: vehicle.model || "",
+      internal_number: vehicle.internal_number || "",
+      year: vehicle.year || "",
+      plate: vehicle.plate || "",
+      engine: vehicle.engine || "",
+      vin: vehicle.vin || "",
+      current_km: vehicle.current_km || "",
+      notes: vehicle.notes || "",
+    });
+    setVehicleDialogMode('edit');
+    setVehicleDialog(true);
+  };
+
+  const handleOpenCreate = () => {
+    resetVehicleForm();
+    setVehicleDialog(true);
   };
 
   const handleSaveCustomer = async () => {
@@ -199,7 +237,9 @@ function CustomerDetail() {
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     if (!vehicleSearchTerm.trim()) return true;
-    return (vehicle.plate || '').toLowerCase().includes(vehicleSearchTerm.toLowerCase());
+    const term = vehicleSearchTerm.toLowerCase();
+    return (vehicle.plate || '').toLowerCase().includes(term)
+        || (vehicle.internal_number || '').toLowerCase().includes(term);
   });
 
   const getWorkOrderPlate = (vehicleId) => {
@@ -529,7 +569,7 @@ function CustomerDetail() {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => setVehicleDialog(true)}
+                onClick={handleOpenCreate}
               >
                 Agregar Vehículo
               </Button>
@@ -539,7 +579,7 @@ function CustomerDetail() {
               <TextField
                 fullWidth
                 size="small"
-                label="Buscar por patente"
+                label="Buscar por patente o N° Interno"
                 placeholder="Ej: AB123CD"
                 value={vehicleSearchTerm}
                 onChange={(e) => setVehicleSearchTerm(e.target.value)}
@@ -559,6 +599,7 @@ function CustomerDetail() {
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Modelo</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Año</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>Patente</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: 2 }}>N° Interno</TableCell>
                       <TableCell sx={{ fontWeight: 600, py: 2 }}>KM</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 600, py: 2 }}>Acciones</TableCell>
                     </TableRow>
@@ -572,22 +613,28 @@ function CustomerDetail() {
                           borderBottom: index === filteredVehicles.length - 1 ? 'none' : '1px solid #e2e8f0',
                         }}
                       >
-                        <TableCell sx={{ py: 2.5 }}>{vehicle.brand}</TableCell>
-                        <TableCell sx={{ py: 2.5 }}>{vehicle.model}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.brand || "-"}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.model || "-"}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{vehicle.year || "-"}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{vehicle.plate || "-"}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{vehicle.internal_number || "-"}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{vehicle.current_km || 0}</TableCell>
                         <TableCell align="center" sx={{ py: 2.5 }}>
                           <Box display="flex" gap={1} justifyContent="center">
                             <TableActionIconButton
+                              kind="edit"
+                              onClick={() => handleOpenEdit(vehicle)}
+                              ariaLabel={`Editar vehículo ${vehicle.plate || vehicle.brand || ''}`}
+                            />
+                            <TableActionIconButton
                               kind="access"
                               onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                              ariaLabel={`Abrir vehículo ${vehicle.brand} ${vehicle.model}`}
+                              ariaLabel={`Abrir vehículo ${vehicle.brand || vehicle.plate || ''}`}
                             />
                             <TableActionIconButton
                               kind="workorder"
                               onClick={() => navigate(`/work-orders/new?customer_id=${id}&vehicle_id=${vehicle.id}`)}
-                              ariaLabel={`Crear remito para vehículo ${vehicle.brand} ${vehicle.model}`}
+                              ariaLabel={`Crear remito para vehículo ${vehicle.brand || vehicle.plate || ''}`}
                             />
                           </Box>
                         </TableCell>
@@ -677,24 +724,24 @@ function CustomerDetail() {
           </CardContent>
         </Card>
 
-        {/* Dialog Agregar Vehículo */}
+        {/* Dialog Agregar / Editar Vehículo */}
         <StyledDialog
           open={vehicleDialog}
-          onClose={() => setVehicleDialog(false)}
+          onClose={() => { setVehicleDialog(false); resetVehicleForm(); }}
           maxWidth="md"
-          title="Agregar Vehículo"
-          subtitle="Completa los datos del nuevo vehículo"
+          title={vehicleDialogMode === 'create' ? 'Agregar Vehículo' : 'Editar Vehículo'}
+          subtitle={vehicleDialogMode === 'create' ? 'Completa los datos del nuevo vehículo' : 'Modifica los datos del vehículo'}
           actions={(
             <>
               <Button
-                onClick={() => setVehicleDialog(false)}
+                onClick={() => { setVehicleDialog(false); resetVehicleForm(); }}
                 variant="outlined"
                 sx={{ mr: 1 }}
               >
                 Cancelar
               </Button>
               <Button
-                onClick={handleCreateVehicle}
+                onClick={handleSaveVehicle}
                 variant="contained"
                 startIcon={<SaveIcon />}
                 sx={{
@@ -702,7 +749,7 @@ function CustomerDetail() {
                   background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
                 }}
               >
-                Guardar Vehículo
+                {vehicleDialogMode === 'create' ? 'Guardar Vehículo' : 'Actualizar Vehículo'}
               </Button>
             </>
           )}
@@ -720,7 +767,6 @@ function CustomerDetail() {
             onChange={(e) =>
               setNewVehicle({ ...newVehicle, brand: e.target.value })
             }
-            required
             variant="outlined"
             size="small"
           />
@@ -734,7 +780,6 @@ function CustomerDetail() {
             onChange={(e) =>
               setNewVehicle({ ...newVehicle, model: e.target.value })
             }
-            required
             variant="outlined"
             size="small"
           />
@@ -763,9 +808,24 @@ function CustomerDetail() {
             onChange={(e) =>
               setNewVehicle({ ...newVehicle, plate: e.target.value })
             }
+            required
             variant="outlined"
             size="small"
             placeholder="ABC123"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="N° Interno"
+            value={newVehicle.internal_number}
+            onChange={(e) =>
+              setNewVehicle({ ...newVehicle, internal_number: e.target.value })
+            }
+            variant="outlined"
+            size="small"
+            placeholder="1234"
           />
         </Grid>
 

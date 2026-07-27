@@ -96,6 +96,7 @@ export const invoiceService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/invoices/from-work-order/${workOrderId}`, data),
   list: (params) => api.get('/invoices', { params }),
   exportCsv: (params) => api.get('/invoices/export', { params, responseType: 'blob' }),
+  update: (invoiceId, data) => api.put(`/invoices/${invoiceId}`, data),
   delete: (invoiceId) => api.delete(`/invoices/${invoiceId}`),
   uploadAttachment: (invoiceId, file) => {
     const formData = new FormData()

@@ -29,11 +29,9 @@ function WorkOrderDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [generating, setGenerating] = useState(false)
-  const [paymentOpen, setPaymentOpen] = useState(false)
-  const [account, setAccount] = useState(null)
-  const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'cash', reference: '' })
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
   const [invoiceFile, setInvoiceFile] = useState(null)
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0])
   const confirm = useConfirm()
   const { error: notifyError, success: notifySuccess, warning: notifyWarning } = useNotify()
 
@@ -103,7 +101,7 @@ function WorkOrderDetail() {
   const handleConfirmInvoice = async () => {
     try {
       setGenerating(true)
-      const resp = await invoiceService.createFromWorkOrder(id)
+      const resp = await invoiceService.createFromWorkOrder(id, { invoice_date: invoiceDate })
       const data = resp.data
       if (data.error) throw new Error(data.error)
 
@@ -119,6 +117,7 @@ function WorkOrderDetail() {
       await loadWorkOrderData()
       setInvoiceModalOpen(false)
       setInvoiceFile(null)
+      setInvoiceDate(new Date().toISOString().split('T')[0])
       notifySuccess(`Factura ${data.number} creada. Movimiento #${data.movement_id}`)
     } catch (e) {
       console.error(e)
@@ -277,13 +276,15 @@ function WorkOrderDetail() {
                   Estado Actual
                 </Typography>
                 <Box mt={2} display="flex" gap={1} justifyContent="center">
-                  <Button
-                    variant="outlined"
-                    disabled={generating || workOrder.status !== 'OPEN'}
-                    onClick={handleGenerateDeliveryNote}
-                  >
-                    Generar Remito
-                  </Button>
+                  {workOrder.status === 'OPEN' && (
+                    <Button
+                      variant="outlined"
+                      disabled={generating}
+                      onClick={handleGenerateDeliveryNote}
+                    >
+                      Generar Remito
+                    </Button>
+                  )}
                   <Button
                     variant="contained"
                     disabled={generating || workOrder.status !== 'OPEN'}
@@ -326,13 +327,13 @@ function WorkOrderDetail() {
       {/* Modal Generar Factura con adjunto opcional */}
       <StyledDialog
         open={invoiceModalOpen}
-        onClose={() => setInvoiceModalOpen(false)}
+        onClose={() => { setInvoiceModalOpen(false); setInvoiceFile(null); setInvoiceDate(new Date().toISOString().split('T')[0]); }}
         maxWidth="sm"
         title="Generar Factura"
         subtitle="Adjunta una imagen opcional para asociarla a la factura"
         actions={(
           <>
-            <Button onClick={() => { setInvoiceModalOpen(false); setInvoiceFile(null); }} variant="outlined" disabled={generating}>Cancelar</Button>
+            <Button onClick={() => { setInvoiceModalOpen(false); setInvoiceFile(null); setInvoiceDate(new Date().toISOString().split('T')[0]); }} variant="outlined" disabled={generating}>Cancelar</Button>
             <Button variant="contained" onClick={handleConfirmInvoice} disabled={generating}>
               {generating ? 'Generando...' : 'Generar Factura'}
             </Button>
@@ -356,6 +357,16 @@ function WorkOrderDetail() {
               {invoiceFile.name} ({Math.round(invoiceFile.size / 1024)} KB)
             </Typography>
           )}
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              label="Fecha de Factura"
+              type="date"
+              value={invoiceDate}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
       </StyledDialog>
 
       {/* Payment Modal */}

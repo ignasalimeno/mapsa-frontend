@@ -102,7 +102,7 @@ function WorkOrderForm() {
   const [remitoModalOpen, setRemitoModalOpen] = useState(false);
   const [facturaModalOpen, setFacturaModalOpen] = useState(false);
   const [remitoForm, setRemitoForm] = useState({ id_external: '', notes: '' });
-  const [facturaForm, setFacturaForm] = useState({ id_afip: '', invoice_type: 'A' });
+  const [facturaForm, setFacturaForm] = useState({ id_afip: '', invoice_type: 'A', invoice_date: new Date().toISOString().split('T')[0] });
   
   const [orderItems, setOrderItems] = useState([]);
   const statusInfo = WORK_ORDER_STATUS[workOrder.status] || { label: workOrder.status, color: 'default' };
@@ -410,24 +410,14 @@ function WorkOrderForm() {
       onBack={() => navigate(-1)}
       actions={
         isEditing && workOrder.status === 'OPEN' ? (
-          <>
-            <Button
-              variant="outlined"
-              disabled={loading}
-              onClick={() => setRemitoModalOpen(true)}
-              size="large"
-            >
-              Generar Remito
-            </Button>
-            <Button
-              variant="contained"
-              disabled={loading}
-              onClick={() => setFacturaModalOpen(true)}
-              size="large"
-            >
-              Generar Factura
-            </Button>
-          </>
+          <Button
+            variant="contained"
+            disabled={loading}
+            onClick={() => setFacturaModalOpen(true)}
+            size="large"
+          >
+            Generar Factura
+          </Button>
         ) : null
       }
     >
@@ -612,7 +602,7 @@ function WorkOrderForm() {
                   await loadWorkOrderData()
                   notifySuccess(`Factura ${data.number} (Tipo ${facturaForm.invoice_type}) creada (AFIP: ${data.id_afip || facturaForm.id_afip || 'N/A'})`)
                   setFacturaModalOpen(false)
-                  setFacturaForm({ id_afip: '', invoice_type: 'A' })
+                  setFacturaForm({ id_afip: '', invoice_type: 'A', invoice_date: new Date().toISOString().split('T')[0] })
                 } catch (e) {
                   console.error(e)
                   notifyError('Error al generar factura')
@@ -647,6 +637,16 @@ function WorkOrderForm() {
                   onChange={(e) => setFacturaForm({ ...facturaForm, id_afip: e.target.value })}
                   fullWidth
                   inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Fecha de Factura"
+                  type="date"
+                  value={facturaForm.invoice_date}
+                  onChange={(e) => setFacturaForm({ ...facturaForm, invoice_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
                 />
               </Grid>
             </Grid>

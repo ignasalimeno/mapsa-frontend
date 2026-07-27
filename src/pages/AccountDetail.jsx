@@ -257,14 +257,13 @@ function AccountDetail() {
   const getMovementReference = (movement) => {
     if (movement?.external_id) return movement.external_id
 
-    const description = String(movement?.description || '')
-    if (!description) return '-'
-
-    const afipMatch = description.match(/AFIP\s*[:#-]?\s*([A-Za-z0-9\-\/]+)/i)
-    if (afipMatch?.[1]) return afipMatch[1]
-
-    const invoiceMatch = description.match(/Factura\s*[:#-]?\s*([A-Za-z0-9\-\/]+)/i)
-    if (invoiceMatch?.[1]) return invoiceMatch[1]
+    if (movement?.type === 'INVOICE') {
+      const invoiceMatch = String(movement.description || '').match(/Factura\s+(F-\d+)/)
+      if (invoiceMatch?.[1]) {
+        const inv = invoices.find(i => i.number === invoiceMatch[1])
+        if (inv?.id_afip) return inv.id_afip
+      }
+    }
 
     return '-'
   }
@@ -509,7 +508,16 @@ function AccountDetail() {
                         '-'
                       )}
                     </TableCell>
-                    <TableCell>{movement.description}</TableCell>
+                    <TableCell>
+                      {movement.type === 'INVOICE' ? (() => {
+                        const m = String(movement.description || '').match(/Factura\s+(F-\d+)/)
+                        if (m?.[1]) {
+                          const inv = invoices.find(i => i.number === m[1])
+                          if (inv?.id_afip) return `Factura ${inv.id_afip}`
+                        }
+                        return movement.description
+                      })() : movement.description}
+                    </TableCell>
                     <TableCell align="right" sx={{ color: 'error.main' }}>
                       {movement.direction === 'DEBIT' ? formatCurrency(movement.amount) : '-'}
                     </TableCell>

@@ -15,9 +15,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-material'
+import { Download as DownloadIcon, Edit as EditIcon, Search as SearchIcon } from '@mui/icons-material'
 import { invoiceService } from '../services/api'
-import { InvoicePaymentComposer, LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
+import { InvoicePaymentComposer, LoadingOverlay, PageLayout, StyledDialog, TableActionIconButton } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel, useConfirm, useNotify } from '../context'
@@ -141,6 +141,9 @@ function InvoiceList() {
   const { error: notifyError, success: notifySuccess } = useNotify()
   const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editInvoice, setEditInvoice] = useState(null)
+  const [editDate, setEditDate] = useState('')
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -225,6 +228,31 @@ function InvoiceList() {
     loadInvoices()
   }
 
+  const handleOpenEdit = (invoice) => {
+    setEditInvoice(invoice)
+    setEditDate(invoice.invoice_date || new Date().toISOString().split('T')[0])
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    try {
+      const resp = await invoiceService.update(editInvoice.id, { invoice_date: editDate })
+      if (resp.data.error) throw new Error(resp.data.error)
+      notifySuccess('Fecha actualizada correctamente')
+      setEditDialogOpen(false)
+      setEditInvoice(null)
+      loadInvoices()
+    } catch (err) {
+      notifyError('Error al actualizar fecha')
+      console.error(err)
+    }
+  }
+
+  const handleCloseEdit = () => {
+    setEditDialogOpen(false)
+    setEditInvoice(null)
+  }
+
   const renderSelectValue = (value, optionsMap, emptyLabel) => {
     if (!value) {
       return <Box component="span" sx={{ color: 'text.secondary' }}>{emptyLabel}</Box>
@@ -235,6 +263,11 @@ function InvoiceList() {
 
   const renderActions = (invoice) => (
     <Box display="flex" gap={1} justifyContent="center">
+      <TableActionIconButton
+        kind="edit"
+        onClick={() => handleOpenEdit(invoice)}
+        ariaLabel={`Editar factura ${invoice.id_afip || invoice.id}`}
+      />
       <Button variant="outlined" size="small" onClick={() => handleOpenPayments(invoice)}>
         Pagos
       </Button>
@@ -387,6 +420,29 @@ function InvoiceList() {
           )}
         </DialogContent>
       </Dialog>
+
+      <StyledDialog
+        open={editDialogOpen}
+        onClose={handleCloseEdit}
+        maxWidth="xs"
+        title="Editar Fecha"
+        subtitle={editInvoice ? `Factura ${editInvoice.id_afip || editInvoice.number || '-'}` : ''}
+        actions={(
+          <>
+            <Button onClick={handleCloseEdit} variant="outlined">Cancelar</Button>
+            <Button variant="contained" onClick={handleSaveEdit}>Guardar</Button>
+          </>
+        )}
+      >
+        <TextField
+          label="Fecha de Factura"
+          type="date"
+          value={editDate}
+          onChange={(e) => setEditDate(e.target.value)}
+          fullWidth
+          InputLabelProps={{ shrink: true }}
+        />
+      </StyledDialog>
     </PageLayout>
   )
 }
