@@ -97,12 +97,16 @@ function WorkOrderForm() {
     km_at_entry: "",
     status: 'OPEN',
     external_id: "",
+    open_date: new Date().toISOString().split('T')[0],
+    invoice_total: 0,
+    final_total: 0,
   });
 
   const [remitoModalOpen, setRemitoModalOpen] = useState(false);
   const [facturaModalOpen, setFacturaModalOpen] = useState(false);
   const [remitoForm, setRemitoForm] = useState({ id_external: '', notes: '' });
   const [facturaForm, setFacturaForm] = useState({ id_afip: '', invoice_type: 'A', invoice_date: new Date().toISOString().split('T')[0] });
+  const [duplicateInvoice, setDuplicateInvoice] = useState(null);
   
   const [orderItems, setOrderItems] = useState([]);
   const statusInfo = WORK_ORDER_STATUS[workOrder.status] || { label: workOrder.status, color: 'default' };
@@ -141,6 +145,9 @@ function WorkOrderForm() {
         km_at_entry: workOrderData.km_at_entry || '',
         status: workOrderData.status || 'OPEN',
         external_id: workOrderData.external_id || '',
+        open_date: workOrderData.open_date || new Date().toISOString().split('T')[0],
+        invoice_total: workOrderData.invoice_total || 0,
+        final_total: workOrderData.final_total || 0,
       });
       
       // Cargar items existentes
@@ -165,6 +172,28 @@ function WorkOrderForm() {
       }
     } catch (err) {
       console.error('Error loading work order:', err);
+    }
+  };
+
+  const remitoTotal = Number(workOrder.invoice_total || workOrder.final_total || 0);
+
+  const handleMergeDuplicate = async () => {
+    if (!duplicateInvoice) return;
+    try {
+      setLoading(true);
+      const resp = await invoiceService.addWorkOrderToInvoice(duplicateInvoice.existing_invoice_id, workOrderId);
+      const data = resp.data;
+      if (data.error) throw new Error(data.error);
+      notifySuccess(`Remito sumado a la factura ${data.number}. Total: ${formatCurrency(data.total)}`);
+      setDuplicateInvoice(null);
+      setFacturaModalOpen(false);
+      setFacturaForm({ id_afip: '', invoice_type: 'A', invoice_date: new Date().toISOString().split('T')[0] });
+      await loadWorkOrderData();
+    } catch (e) {
+      console.error(e);
+      notifyError(e?.response?.data?.error || 'Error al sumar el remito a la factura');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -344,6 +373,7 @@ function WorkOrderForm() {
           km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
           id_warehouse: parseInt(workOrder.id_warehouse),
           external_id: externalId,
+          open_date: workOrder.open_date,
         });
 
         // 2. Reemplazar items (incluye recalculo de total en backend)
@@ -369,6 +399,7 @@ function WorkOrderForm() {
             description: workOrder.description,
             km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
             external_id: externalId,
+            open_date: workOrder.open_date,
           },
           items: orderItems.map(item => ({
             item_id: item.item_id,
@@ -510,6 +541,15 @@ function WorkOrderForm() {
             />
           </Grid>
           <Grid item xs={12} sm={6}>
+            <TextField
+              label="Fecha"
+              type="date"
+              value={workOrder.open_date}
+              onChange={(e) => setWorkOrder({...workOrder, open_date: e.target.value})}
+              fullWidth
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
           </Grid>
           <Grid item xs={12}>
             <TextField
@@ -604,6 +644,10 @@ function WorkOrderForm() {
                   setFacturaModalOpen(false)
                   setFacturaForm({ id_afip: '', invoice_type: 'A', invoice_date: new Date().toISOString().split('T')[0] })
                 } catch (e) {
+                  if (e.response?.status === 409 && e.response?.data?.duplicate) {
+                    setDuplicateInvoice(e.response.data)
+                    return
+                  }
                   console.error(e)
                   notifyError('Error al generar factura')
                 } finally {
@@ -650,6 +694,41 @@ function WorkOrderForm() {
                 />
               </Grid>
             </Grid>
+      </StyledDialog>
+
+      {/* Cartel de factura ya existente (varios remitos con el mismo nro AFIP) */}
+      <StyledDialog
+        open={!!duplicateInvoice}
+        onClose={() => setDuplicateInvoice(null)}
+        maxWidth="sm"
+        title="La factura ya existe"
+        subtitle="Este número AFIP ya está asociado a otro remito"
+        actions={(
+          <>
+            <Button onClick={() => setDuplicateInvoice(null)} variant="outlined" disabled={loading}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={handleMergeDuplicate}
+              disabled={loading}
+            >Sumar a la factura</Button>
+          </>
+        )}
+      >
+        <Stack spacing={1.5}>
+          <Typography variant="body1">
+            La factura AFIP <b>{facturaForm.id_afip}</b> ya está asociada al remito{' '}
+            <b>{duplicateInvoice?.existing_remito || 'sin número'}</b> por un total de{' '}
+            <b>{formatCurrency(duplicateInvoice?.existing_total)}</b>.
+          </Typography>
+          <Typography variant="body1">
+            Si confirmás, este remito (<b>{formatCurrency(remitoTotal)}</b>) se suma a esa factura y
+            el total quedará en <b>{formatCurrency(duplicateInvoice?.new_total)}</b>.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            El remito quedará facturado y su monto pasará a formar parte de la factura existente.
+          </Typography>
+        </Stack>
       </StyledDialog>
 
       {/* Tabla de Items */}

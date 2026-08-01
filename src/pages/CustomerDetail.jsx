@@ -191,7 +191,8 @@ function CustomerDetail() {
       await loadCustomerData();
     } catch (err) {
       console.error("Error al guardar vehículo:", err);
-      notifyError('No se pudo guardar el vehículo');
+      const msg = err?.response?.data?.error;
+      notifyError(msg || 'No se pudo guardar el vehículo');
     }
   };
 

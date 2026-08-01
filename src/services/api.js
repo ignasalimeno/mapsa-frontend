@@ -94,6 +94,7 @@ export const accountService = {
 // Billing
 export const invoiceService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/invoices/from-work-order/${workOrderId}`, data),
+  addWorkOrderToInvoice: (invoiceId, workOrderId) => api.post(`/invoices/${invoiceId}/add-work-order/${workOrderId}`),
   list: (params) => api.get('/invoices', { params }),
   exportCsv: (params) => api.get('/invoices/export', { params, responseType: 'blob' }),
   update: (invoiceId, data) => api.put(`/invoices/${invoiceId}`, data),

@@ -30,6 +30,17 @@ import { formatCurrency, formatDate } from '../utils/formatters'
 import { PageLayout } from '../components'
 import { useNotify } from '../context'
 
+const paymentMethodLabels = {
+  CASH: 'Efectivo',
+  TRANSFER: 'Transferencia',
+  CHEQUE: 'Cheque',
+  ECHEQ: 'E-Cheq',
+  CARD_CREDIT: 'Tarjeta de Crédito',
+  CARD_DEBIT: 'Tarjeta de Débito',
+  RETENTION: 'Retención',
+  OTRO: 'Otro',
+}
+
 function AccountDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -52,6 +63,8 @@ function AccountDetail() {
     notes: '',
     cheque_number: '',
     bank: '',
+    receipt_number: '',
+    receipt_date: '',
   })
   const [movementForm, setMovementForm] = useState({
     type: 'PAYMENT', // PAYMENT, DEBIT_NOTE, CREDIT_NOTE
@@ -166,6 +179,8 @@ function AccountDetail() {
         notes: line.notes || '',
         cheque_number: line.cheque_number || '',
         bank: line.bank || '',
+        receipt_number: line.receipt_number || '',
+        receipt_date: line.receipt_date || '',
       })
     } else {
       setEditingPaymentLineIndex(null)
@@ -176,6 +191,8 @@ function AccountDetail() {
         notes: '',
         cheque_number: '',
         bank: '',
+        receipt_number: '',
+        receipt_date: '',
       })
     }
     setPaymentLineModalOpen(true)
@@ -205,6 +222,8 @@ function AccountDetail() {
       notes: paymentLineForm.notes || '',
       cheque_number: paymentLineForm.cheque_number || '',
       bank: paymentLineForm.bank || '',
+      receipt_number: paymentLineForm.receipt_number?.trim() || '',
+      receipt_date: paymentLineForm.receipt_date || '',
     }
 
     if (editingPaymentLineIndex !== null) {
@@ -334,6 +353,8 @@ function AccountDetail() {
             notes: [movementForm.description, line.notes, retentionNote].filter(Boolean).join(' | '),
             cheque_number: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.cheque_number || null) : null,
             bank: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.bank || null) : null,
+            receipt_number: line.receipt_number || null,
+            receipt_date: line.receipt_date || null,
             allocations: lineAllocations,
           }
 
@@ -484,6 +505,8 @@ function AccountDetail() {
                   <TableCell>Fecha</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>N° AFIP / Referencia</TableCell>
+                  <TableCell>N° Recibo</TableCell>
+                  <TableCell>Fecha Recibo</TableCell>
                   <TableCell>Descripción</TableCell>
                   <TableCell align="right">Débito</TableCell>
                   <TableCell align="right">Crédito</TableCell>
@@ -507,6 +530,16 @@ function AccountDetail() {
                       ) : (
                         '-'
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {movement.receipt_number ? (
+                        <Chip label={movement.receipt_number} size="small" variant="outlined" color="primary" />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {movement.receipt_date ? formatDate(movement.receipt_date) : '-'}
                     </TableCell>
                     <TableCell>
                       {movement.type === 'INVOICE' ? (() => {
@@ -540,7 +573,7 @@ function AccountDetail() {
                 ))}
                 {(!account.movements || account.movements.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">Sin movimientos</TableCell>
+                    <TableCell colSpan={9} align="center">Sin movimientos</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -646,6 +679,8 @@ function AccountDetail() {
                       <TableRow>
                         <TableCell>Método</TableCell>
                         <TableCell align="right">Monto</TableCell>
+                        <TableCell>N° Recibo</TableCell>
+                        <TableCell>Fecha Recibo</TableCell>
                         <TableCell>Detalle</TableCell>
                         <TableCell align="center">Acciones</TableCell>
                       </TableRow>
@@ -653,8 +688,10 @@ function AccountDetail() {
                     <TableBody>
                       {paymentLines.map((line, index) => (
                         <TableRow key={`${line.method}-${index}`}>
-                          <TableCell>{line.method === 'RETENTION' ? `Retención${line.retention_type ? ` - ${line.retention_type}` : ''}` : line.method}</TableCell>
+                          <TableCell>{line.method === 'RETENTION' ? `Retención${line.retention_type ? ` - ${line.retention_type}` : ''}` : (paymentMethodLabels[line.method] || line.method)}</TableCell>
                           <TableCell align="right">{formatCurrency(line.amount)}</TableCell>
+                          <TableCell>{line.receipt_number || '-'}</TableCell>
+                          <TableCell>{line.receipt_date ? formatDate(line.receipt_date) : '-'}</TableCell>
                           <TableCell>{line.notes || '-'}</TableCell>
                           <TableCell align="center">
                             <Button size="small" onClick={() => openPaymentLineModal(line, index)}>Editar</Button>
@@ -787,6 +824,8 @@ function AccountDetail() {
                 <MenuItem value="TRANSFER">Transferencia</MenuItem>
                 <MenuItem value="CHEQUE">Cheque</MenuItem>
                 <MenuItem value="ECHEQ">E-Cheq</MenuItem>
+                <MenuItem value="CARD_CREDIT">Tarjeta de Crédito</MenuItem>
+                <MenuItem value="CARD_DEBIT">Tarjeta de Débito</MenuItem>
                 <MenuItem value="RETENTION">Retención</MenuItem>
               </TextField>
             </Grid>
@@ -819,6 +858,27 @@ function AccountDetail() {
                 onChange={(e) => setPaymentLineForm({ ...paymentLineForm, amount: e.target.value })}
                 fullWidth
                 inputProps={{ step: 0.01, min: 0 }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                label="N° de Recibo (opcional)"
+                value={paymentLineForm.receipt_number}
+                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, receipt_number: e.target.value })}
+                fullWidth
+                placeholder="Número de recibo impreso"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                type="date"
+                label="Fecha de Recibo (opcional)"
+                value={paymentLineForm.receipt_date}
+                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, receipt_date: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 

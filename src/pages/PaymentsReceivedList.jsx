@@ -17,6 +17,7 @@ import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { paymentService } from '../services/api'
+import { useChannel } from '../context'
 
 const paymentTypeOptions = [
   { value: '', label: 'Todos los tipos' },
@@ -24,6 +25,8 @@ const paymentTypeOptions = [
   { value: 'TRANSFER', label: 'Transferencia' },
   { value: 'CHEQUE', label: 'Cheque' },
   { value: 'ECHEQ', label: 'E-Cheq' },
+  { value: 'CARD_CREDIT', label: 'Tarjeta de Crédito' },
+  { value: 'CARD_DEBIT', label: 'Tarjeta de Débito' },
   { value: 'RETENTION', label: 'Retención' },
 ]
 
@@ -32,6 +35,8 @@ const paymentTypeLabel = {
   TRANSFER: 'Transferencia',
   CHEQUE: 'Cheque',
   ECHEQ: 'E-Cheq',
+  CARD_CREDIT: 'Tarjeta de Crédito',
+  CARD_DEBIT: 'Tarjeta de Débito',
   RETENTION: 'Retención',
   OTRO: 'Otro',
 }
@@ -50,13 +55,13 @@ function PaymentsReceivedList() {
   const [summary, setSummary] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const { channel } = useChannel()
   const [filters, setFilters] = useState({
     search: '',
     province: '',
     payment_type: '',
     date_from: '',
     date_to: '',
-    channel: 'ALL',
   })
 
   const provinceOptions = [
@@ -69,13 +74,13 @@ function PaymentsReceivedList() {
 
   useEffect(() => {
     loadPayments()
-  }, [])
+  }, [channel])
 
   const loadPayments = async () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await paymentService.listReceived(filters)
+      const response = await paymentService.listReceived({ ...filters, channel })
       setRows(response.data?.items || [])
       setSummary(response.data?.summary_by_type || [])
     } catch (err) {
@@ -99,7 +104,7 @@ function PaymentsReceivedList() {
 
   const handleExport = async () => {
     try {
-      const response = await paymentService.exportReceivedCsv(filters)
+      const response = await paymentService.exportReceivedCsv({ ...filters, channel })
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -173,24 +178,6 @@ function PaymentsReceivedList() {
                 {paymentTypeOptions.map((opt) => (
                   <MenuItem key={opt.value || 'all'} value={opt.value}>{opt.label}</MenuItem>
                 ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={1.5}>
-              <TextField
-                select
-                label="Canal"
-                fullWidth
-                value={filters.channel}
-                onChange={(e) => handleFilterChange('channel', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                SelectProps={{
-                  displayEmpty: true,
-                  renderValue: (value) => renderSelectValue(value, 'Todos los canales'),
-                }}
-              >
-                <MenuItem value="ALL">Consolidado</MenuItem>
-                <MenuItem value="MAPSA">MAPSA</MenuItem>
-                <MenuItem value="VIGIA">VIGIA</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} md={1.25}>

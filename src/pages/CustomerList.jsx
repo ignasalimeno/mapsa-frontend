@@ -14,6 +14,7 @@ import { customerService } from '../services/api'
 import { formatCurrency } from '../utils/formatters'
 import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 import ExcelTable from '../components/ExcelTable'
+import { useChannel } from '../context'
 
 function CustomerList() {
   const [customers, setCustomers] = useState([])
@@ -22,6 +23,7 @@ function CustomerList() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showDebtors, setShowDebtors] = useState(false)
   const navigate = useNavigate()
+  const { channel } = useChannel()
 
   const handleExportDebtorsCsv = async () => {
     try {
@@ -44,7 +46,7 @@ function CustomerList() {
 
   useEffect(() => {
     loadCustomers()
-  }, [])
+  }, [channel])
 
   const loadCustomers = async () => {
     try {

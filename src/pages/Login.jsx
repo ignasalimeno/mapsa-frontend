@@ -81,7 +81,7 @@ function Login() {
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} autoComplete="off">
               <TextField
                 fullWidth
                 label="Usuario"
@@ -90,6 +90,7 @@ function Login() {
                 margin="normal"
                 required
                 autoFocus
+                autoComplete="off"
               />
               <TextField
                 fullWidth
@@ -97,8 +98,15 @@ function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }
+                }}
                 margin="normal"
                 required
+                autoComplete="off"
               />
               <TextField
                 fullWidth
@@ -124,12 +132,6 @@ function Login() {
                 {loading ? 'Ingresando...' : 'Ingresar'}
               </Button>
             </form>
-
-            <Box mt={3} textAlign="center">
-              <Typography variant="caption" color="text.secondary">
-                Usuario por defecto: <strong>admin</strong> / <strong>admin123</strong>
-              </Typography>
-            </Box>
           </CardContent>
         </Card>
       </Container>

@@ -37,12 +37,6 @@ const saleTypeFilterLabels = {
   NOTA_DEBITO: 'Nota Débito',
 }
 
-const channelFilterLabels = {
-  ALL: 'Consolidado',
-  MAPSA: 'MAPSA',
-  VIGIA: 'VIGIA',
-}
-
 const columns = [
   {
     id: 'sale_type',
@@ -97,7 +91,6 @@ function SalesList() {
     sale_type: '',
     date_from: '',
     date_to: '',
-    channel: 'ALL',
   })
 
   useEffect(() => {
@@ -108,7 +101,7 @@ function SalesList() {
     try {
       setLoading(true)
       setError(null)
-      const response = await salesService.list(filters)
+      const response = await salesService.list({ ...filters, channel })
       setRows(response.data || [])
     } catch (err) {
       setError('Error al cargar ventas')
@@ -124,7 +117,7 @@ function SalesList() {
 
   const handleExport = async () => {
     try {
-      const response = await salesService.exportCsv(filters)
+      const response = await salesService.exportCsv({ ...filters, channel })
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -188,24 +181,6 @@ function SalesList() {
                 <MenuItem value="FACTURA">Factura</MenuItem>
                 <MenuItem value="NOTA_CREDITO">Nota Crédito</MenuItem>
                 <MenuItem value="NOTA_DEBITO">Nota Débito</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                select
-                fullWidth
-                label="Canal"
-                value={filters.channel}
-                onChange={(e) => handleFilterChange('channel', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                SelectProps={{
-                  displayEmpty: true,
-                  renderValue: (value) => renderSelectValue(value, channelFilterLabels, 'Todos los canales'),
-                }}
-              >
-                <MenuItem value="ALL">Consolidado</MenuItem>
-                <MenuItem value="MAPSA">MAPSA</MenuItem>
-                <MenuItem value="VIGIA">VIGIA</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} md={2}>

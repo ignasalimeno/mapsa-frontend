@@ -11,6 +11,7 @@ import { Add as AddIcon } from '@mui/icons-material'
 import { vehicleService, customerService } from '../services/api'
 import { LoadingOverlay, PageLayout, TableActionIconButton } from '../components'
 import ExcelTable from '../components/ExcelTable'
+import { useChannel } from '../context'
 
 function VehicleList() {
   const [vehicles, setVehicles] = useState([])
@@ -18,10 +19,11 @@ function VehicleList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const { channel } = useChannel()
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [channel])
 
   const loadData = async () => {
     try {

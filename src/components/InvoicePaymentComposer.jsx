@@ -29,7 +29,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material'
 import { invoicePaymentService } from '../services/api'
-import { formatCurrency } from '../utils/formatters'
+import { formatCurrency, formatDate } from '../utils/formatters'
 import { useNotify } from '../context'
 
 const paymentMethodOptions = [
@@ -37,6 +37,8 @@ const paymentMethodOptions = [
   { value: 'TRANSFER', label: 'Transferencia' },
   { value: 'CHEQUE', label: 'Cheque' },
   { value: 'ECHEQ', label: 'Cheque Electrónico' },
+  { value: 'CARD_CREDIT', label: 'Tarjeta de Crédito' },
+  { value: 'CARD_DEBIT', label: 'Tarjeta de Débito' },
   { value: 'RETENTION', label: 'Retención' },
 ]
 
@@ -54,6 +56,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
     method: 'CASH',
     amount: '',
     retention_type: null,
+    receipt_number: '',
+    receipt_date: '',
     notes: '',
   })
 
@@ -105,6 +109,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
         method: draftPayment.method,
         amount: draftPayment.amount,
         retention_type: draftPayment.retention_type,
+        receipt_number: draftPayment.receipt_number || '',
+        receipt_date: draftPayment.receipt_date || '',
         notes: draftPayment.notes || '',
       })
     } else {
@@ -113,6 +119,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
         method: 'CASH',
         amount: '',
         retention_type: null,
+        receipt_number: '',
+        receipt_date: '',
         notes: '',
       })
     }
@@ -151,6 +159,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
       method: formData.method,
       amount,
       retention_type: formData.method === 'RETENTION' ? formData.retention_type : null,
+      receipt_number: formData.receipt_number?.trim() || '',
+      receipt_date: formData.receipt_date || '',
       notes: formData.notes || '',
     }
 
@@ -198,6 +208,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
             method: draft.method,
             amount: draft.amount,
             retention_type: draft.retention_type,
+            receipt_number: draft.receipt_number,
+            receipt_date: draft.receipt_date,
             notes: draft.notes,
           })
         } catch (innerErr) {
@@ -321,6 +333,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                 <TableRow sx={{ backgroundColor: 'grey.50' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Forma de Pago</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>Monto</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>N° Recibo</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Fecha Recibo</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Notas</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 600 }}>Acciones</TableCell>
                 </TableRow>
@@ -337,6 +351,16 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
                       {formatCurrency(method.amount)}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {method.receipt_number || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {method.receipt_date ? formatDate(method.receipt_date) : '-'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -378,6 +402,8 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                 <TableRow sx={{ backgroundColor: 'info.50' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Pendientes de Guardar</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>Monto</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>N° Recibo</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Fecha Recibo</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Notas</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 600 }}>Acciones</TableCell>
                 </TableRow>
@@ -395,6 +421,16 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
                       {formatCurrency(payment.amount)}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {payment.receipt_number || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {payment.receipt_date ? formatDate(payment.receipt_date) : '-'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -464,6 +500,23 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                 ))}
               </TextField>
             )}
+
+            <TextField
+              label="N° de Recibo (opcional)"
+              value={formData.receipt_number}
+              onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
+              fullWidth
+              placeholder="Número de recibo impreso"
+            />
+
+            <TextField
+              type="date"
+              label="Fecha de Recibo (opcional)"
+              value={formData.receipt_date}
+              onChange={(e) => setFormData({ ...formData, receipt_date: e.target.value })}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
 
             <TextField
               label="Monto"

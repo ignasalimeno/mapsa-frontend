@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Grid,
-  MenuItem,
   TextField,
   Typography,
 } from '@mui/material'
@@ -24,7 +23,6 @@ function UtilityList() {
   const [filters, setFilters] = useState({
     date_from: '',
     date_to: '',
-    channel: 'ALL',
   })
 
   useEffect(() => {
@@ -38,7 +36,7 @@ function UtilityList() {
       const response = await utilityService.list({
         date_from: filters.date_from,
         date_to: filters.date_to,
-        channel: filters.channel,
+        channel,
       })
       setData(response.data || { totals: {}, items: [] })
     } catch (err) {
@@ -91,19 +89,6 @@ function UtilityList() {
                 onChange={(e) => handleFilterChange('date_to', e.target.value)}
                 InputLabelProps={{ shrink: true }}
               />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                select
-                fullWidth
-                label="Canal"
-                value={filters.channel}
-                onChange={(e) => handleFilterChange('channel', e.target.value)}
-              >
-                <MenuItem value="ALL">Consolidado</MenuItem>
-                <MenuItem value="MAPSA">MAPSA</MenuItem>
-                <MenuItem value="VIGIA">VIGIA</MenuItem>
-              </TextField>
             </Grid>
             <Grid item xs={12}>
               <Box display="flex" justifyContent="flex-end">

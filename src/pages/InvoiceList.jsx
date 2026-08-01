@@ -46,12 +46,6 @@ const invoiceTypeFilterLabels = {
   B: 'B',
 }
 
-const channelFilterLabels = {
-  ALL: 'Consolidado',
-  MAPSA: 'MAPSA',
-  VIGIA: 'VIGIA',
-}
-
 const columns = [
   {
     id: 'id_afip',
@@ -75,10 +69,10 @@ const columns = [
         : row.customer_name,
   },
   {
-    id: 'work_order_number',
-    label: 'Remito',
-    width: 100,
-    render: (row) => row.work_order_number || '-',
+    id: 'remitos',
+    label: 'Remito(s)',
+    width: 140,
+    render: (row) => row.remitos || row.work_order_number || '-',
   },
   {
     id: 'invoice_type',
@@ -150,7 +144,6 @@ function InvoiceList() {
     invoice_type: '',
     date_from: '',
     date_to: '',
-    channel: 'ALL',
   })
 
   useEffect(() => {
@@ -161,7 +154,7 @@ function InvoiceList() {
     try {
       setLoading(true)
       setError(null)
-      const response = await invoiceService.list(filters)
+      const response = await invoiceService.list({ ...filters, channel })
       setInvoices(response.data || [])
     } catch (err) {
       setError('Error al cargar facturas')
@@ -181,7 +174,7 @@ function InvoiceList() {
 
   const handleExportCsv = async () => {
     try {
-      const response = await invoiceService.exportCsv(filters)
+      const response = await invoiceService.exportCsv({ ...filters, channel })
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -338,24 +331,6 @@ function InvoiceList() {
                 <MenuItem value="">Todos los tipos</MenuItem>
                 <MenuItem value="A">A</MenuItem>
                 <MenuItem value="B">B</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                select
-                fullWidth
-                label="Canal"
-                value={filters.channel}
-                onChange={(e) => handleFilterChange('channel', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                SelectProps={{
-                  displayEmpty: true,
-                  renderValue: (value) => renderSelectValue(value, channelFilterLabels, 'Todos los canales'),
-                }}
-              >
-                <MenuItem value="ALL">Consolidado</MenuItem>
-                <MenuItem value="MAPSA">MAPSA</MenuItem>
-                <MenuItem value="VIGIA">VIGIA</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} md={2}>
