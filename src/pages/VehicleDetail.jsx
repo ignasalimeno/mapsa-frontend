@@ -59,8 +59,8 @@ function VehicleDetail() {
 
   return (
     <PageLayout
-      title={`Vehículo ${vehicle.brand || vehicle.model || vehicle.plate || vehicle.internal_number || ''}`}
-      subtitle={`Patente ${vehicle.plate || '-'}${vehicle.internal_number ? ` — N° Interno: ${vehicle.internal_number}` : ''}`}
+      title={`Vehículo ${vehicle?.brand || vehicle?.model || vehicle?.plate || vehicle?.internal_number || ''}`}
+      subtitle={`Patente ${vehicle?.plate || '-'}${vehicle?.internal_number ? ` — N° Interno: ${vehicle.internal_number}` : ''}`}
       onBack={() => navigate(-1)}
       actions={(
         <Button variant="outlined" onClick={() => navigate(`/customers/${vehicle.customer_id}`)}>

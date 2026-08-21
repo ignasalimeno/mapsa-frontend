@@ -243,9 +243,13 @@ function CustomerDetail() {
         || (vehicle.internal_number || '').toLowerCase().includes(term);
   });
 
-  const getWorkOrderPlate = (vehicleId) => {
-    const vehicle = vehicles.find((v) => v.id === vehicleId)
-    return vehicle?.plate || '-'
+  const getWorkOrderPlate = (workOrder) => {
+    if (workOrder.plates) return workOrder.plates
+    if (!workOrder.vehicle_ids || workOrder.vehicle_ids.length === 0) return '-'
+    return workOrder.vehicle_ids.map((vid) => {
+      const vehicle = vehicles.find((v) => v.id === vid)
+      return vehicle?.plate || `#${vid}`
+    }).join(' / ')
   }
 
   const getWorkOrderAmount = (workOrder) => {
@@ -694,7 +698,7 @@ function CustomerDetail() {
                         }}
                       >
                         <TableCell sx={{ py: 2.5 }}>{workOrder.external_id || '-'}</TableCell>
-                        <TableCell sx={{ py: 2.5 }}>{getWorkOrderPlate(workOrder.vehicle_id)}</TableCell>
+                        <TableCell sx={{ py: 2.5 }}>{getWorkOrderPlate(workOrder)}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>{formatDate(workOrder.open_date)}</TableCell>
                         <TableCell sx={{ py: 2.5 }}>
                           <Chip

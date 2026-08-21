@@ -39,8 +39,19 @@ const paymentMethodOptions = [
   { value: 'ECHEQ', label: 'Cheque Electrónico' },
   { value: 'CARD_CREDIT', label: 'Tarjeta de Crédito' },
   { value: 'CARD_DEBIT', label: 'Tarjeta de Débito' },
-  { value: 'RETENTION', label: 'Retención' },
 ]
+
+const RETENTION_PREFIX = 'RETENTION__'
+
+const composeMethodValue = (method, retentionType) =>
+  method === 'RETENTION' ? `${RETENTION_PREFIX}${retentionType || ''}` : method
+
+const parseMethodValue = (value) => {
+  if (value?.startsWith(RETENTION_PREFIX)) {
+    return { method: 'RETENTION', retention_type: value.slice(RETENTION_PREFIX.length) }
+  }
+  return { method: value, retention_type: null }
+}
 
 export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaymentUpdate }) {
   const [methods, setMethods] = useState([])
@@ -106,7 +117,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
     if (draftPayment) {
       setEditingDraftIndex(index)
       setFormData({
-        method: draftPayment.method,
+        method: composeMethodValue(draftPayment.method, draftPayment.retention_type),
         amount: draftPayment.amount,
         retention_type: draftPayment.retention_type,
         receipt_number: draftPayment.receipt_number || '',
@@ -150,15 +161,16 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
       return
     }
 
-    if (formData.method === 'RETENTION' && !formData.retention_type) {
+    const { method, retention_type } = parseMethodValue(formData.method)
+    if (method === 'RETENTION' && !retention_type) {
       notifyError('Selecciona el tipo de retención')
       return
     }
 
     const nextPayment = {
-      method: formData.method,
+      method,
       amount,
-      retention_type: formData.method === 'RETENTION' ? formData.retention_type : null,
+      retention_type: method === 'RETENTION' ? retention_type : null,
       receipt_number: formData.receipt_number?.trim() || '',
       receipt_date: formData.receipt_date || '',
       notes: formData.notes || '',
@@ -474,7 +486,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
               label="Forma de Pago"
               value={formData.method}
               onChange={(e) => {
-                setFormData({ ...formData, method: e.target.value, retention_type: null })
+                setFormData({ ...formData, method: e.target.value })
               }}
               fullWidth
             >
@@ -483,23 +495,17 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                   {option.label}
                 </MenuItem>
               ))}
+              {retentionTypes.length > 0 && (
+                <MenuItem disabled value="retention-separator">
+                  Retenciones
+                </MenuItem>
+              )}
+              {retentionTypes.map((type) => (
+                <MenuItem key={type.id_retention_type} value={`${RETENTION_PREFIX}${type.name}`}>
+                  {`Retención ${type.name}`}
+                </MenuItem>
+              ))}
             </TextField>
-
-            {formData.method === 'RETENTION' && (
-              <TextField
-                select
-                label="Tipo de Retención"
-                value={formData.retention_type || ''}
-                onChange={(e) => setFormData({ ...formData, retention_type: e.target.value })}
-                fullWidth
-              >
-                {retentionTypes.map((type) => (
-                  <MenuItem key={type.id_retention_type} value={type.name}>
-                    {type.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
 
             <TextField
               label="N° de Recibo (opcional)"

@@ -41,6 +41,18 @@ const paymentMethodLabels = {
   OTRO: 'Otro',
 }
 
+const RETENTION_PREFIX = 'RETENTION__'
+
+const composeMethodValue = (method, retentionType) =>
+  method === 'RETENTION' ? `${RETENTION_PREFIX}${retentionType || ''}` : method
+
+const parseMethodValue = (value) => {
+  if (value?.startsWith(RETENTION_PREFIX)) {
+    return { method: 'RETENTION', retention_type: value.slice(RETENTION_PREFIX.length) }
+  }
+  return { method: value, retention_type: '' }
+}
+
 function AccountDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -173,7 +185,7 @@ function AccountDetail() {
     if (line) {
       setEditingPaymentLineIndex(index)
       setPaymentLineForm({
-        method: line.method,
+        method: composeMethodValue(line.method, line.retention_type),
         amount: String(line.amount),
         retention_type: line.retention_type || '',
         notes: line.notes || '',
@@ -210,15 +222,16 @@ function AccountDetail() {
       return
     }
 
-    if (paymentLineForm.method === 'RETENTION' && !paymentLineForm.retention_type) {
+    const { method, retention_type } = parseMethodValue(paymentLineForm.method)
+    if (method === 'RETENTION' && !retention_type) {
       notifyError('Seleccione un tipo de retención')
       return
     }
 
     const nextLine = {
-      method: paymentLineForm.method,
+      method,
       amount,
-      retention_type: paymentLineForm.method === 'RETENTION' ? paymentLineForm.retention_type : '',
+      retention_type: method === 'RETENTION' ? retention_type : '',
       notes: paymentLineForm.notes || '',
       cheque_number: paymentLineForm.cheque_number || '',
       bank: paymentLineForm.bank || '',
@@ -817,7 +830,7 @@ function AccountDetail() {
                 select
                 label="Método de Pago"
                 value={paymentLineForm.method}
-                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, method: e.target.value, retention_type: '' })}
+                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, method: e.target.value })}
                 fullWidth
               >
                 <MenuItem value="CASH">Efectivo</MenuItem>
@@ -826,29 +839,18 @@ function AccountDetail() {
                 <MenuItem value="ECHEQ">E-Cheq</MenuItem>
                 <MenuItem value="CARD_CREDIT">Tarjeta de Crédito</MenuItem>
                 <MenuItem value="CARD_DEBIT">Tarjeta de Débito</MenuItem>
-                <MenuItem value="RETENTION">Retención</MenuItem>
+                {retentionTypes.length > 0 && (
+                  <MenuItem disabled value="retention-separator">
+                    Retenciones
+                  </MenuItem>
+                )}
+                {retentionTypes.map((rt) => (
+                  <MenuItem key={rt.id_retention_type} value={`${RETENTION_PREFIX}${rt.name}`}>
+                    {`Retención ${rt.name}`}
+                  </MenuItem>
+                ))}
               </TextField>
             </Grid>
-
-            {paymentLineForm.method === 'RETENTION' && (
-              <Grid item xs={12}>
-                <TextField
-                  select
-                  label="Tipo de Retención"
-                  value={paymentLineForm.retention_type}
-                  onChange={(e) => setPaymentLineForm({ ...paymentLineForm, retention_type: e.target.value })}
-                  fullWidth
-                  sx={{ minWidth: 380 }}
-                  SelectProps={{ displayEmpty: true }}
-                  helperText="Seleccioná un tipo de retención"
-                >
-                  <MenuItem value="" disabled>Seleccionar tipo...</MenuItem>
-                  {retentionTypes.map((rt) => (
-                    <MenuItem key={rt.id_retention_type} value={rt.name}>{rt.name}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-            )}
 
             <Grid item xs={12}>
               <TextField

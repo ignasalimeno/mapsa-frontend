@@ -10,7 +10,7 @@ import {
   InputAdornment
 } from '@mui/material'
 import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material'
-import { workOrderService, customerService, vehicleService } from '../services/api'
+import { workOrderService, customerService } from '../services/api'
 import { LoadingOverlay, PageLayout, TableActionIconButton, ExcelTable } from '../components'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useChannel, useConfirm, useNotify } from '../context'
@@ -20,8 +20,6 @@ function WorkOrderList() {
   const [workOrders, setWorkOrders] = useState([])
   const [filteredWorkOrders, setFilteredWorkOrders] = useState([])
   const [customers, setCustomers] = useState({})
-  const [vehicles, setVehicles] = useState({})
-  const [vehiclePlates, setVehiclePlates] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -47,7 +45,7 @@ function WorkOrderList() {
     const term = searchTerm.toLowerCase()
     const filtered = workOrders.filter(wo => {
       const customerName = (customers[wo.customer_id] || '').toLowerCase()
-      const vehicleInfo = (vehicles[wo.vehicle_id] || 'sin vehículo').toLowerCase()
+      const vehicleInfo = (wo.plates || '').toLowerCase()
       const externalId = (wo.external_id || '').toLowerCase()
       const woId = wo.id.toString()
 
@@ -74,16 +72,6 @@ function WorkOrderList() {
         customersMap[customer.id] = customer.name
       })
       setCustomers(customersMap)
-
-      const vehiclesResponse = await vehicleService.getAll()
-      const vehiclesMap = {}
-      const vehiclePlatesMap = {}
-      vehiclesResponse.data.forEach(vehicle => {
-        vehiclesMap[vehicle.id] = `${vehicle.brand} ${vehicle.model} (${vehicle.plate || 'Sin patente'})`
-        vehiclePlatesMap[vehicle.id] = vehicle.plate || ''
-      })
-      setVehicles(vehiclesMap)
-      setVehiclePlates(vehiclePlatesMap)
 
     } catch (err) {
       setError('Error al cargar órdenes de trabajo')
@@ -137,9 +125,9 @@ function WorkOrderList() {
     },
     {
       id: 'plate',
-      label: 'Patente',
-      sortValue: (row) => (vehiclePlates[row.vehicle_id] || '').toLowerCase(),
-      render: (row) => vehiclePlates[row.vehicle_id] || '-',
+      label: 'Vehículos',
+      sortValue: (row) => (row.plates || '').toLowerCase(),
+      render: (row) => row.plates || '-',
     },
     {
       id: 'description',

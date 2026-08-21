@@ -66,7 +66,8 @@ function CustomerList() {
     const vehicles = (customer.vehicles || '').toLowerCase()
     const matchesSearch = (
       customer.name?.toLowerCase().includes(search) ||
-      customer.document_number?.toLowerCase().includes(search) ||
+      String(customer.customer_number || '').toLowerCase().includes(search) ||
+      customer.cuit?.toLowerCase().includes(search) ||
       vehicles.includes(search)
     )
     const isDebtor = !showDebtors || Number(customer.balance || 0) > 0
@@ -78,7 +79,7 @@ function CustomerList() {
   const columns = [
     { id: 'customer_number', label: 'N° Cliente', sortValue: (row) => Number(row.customer_number || 0) },
     { id: 'name', label: 'Nombre' },
-    { id: 'document_number', label: 'Documento' },
+    { id: 'cuit', label: 'CUIT/CUIL' },
     { id: 'province', label: 'Provincia' },
     { id: 'postal_code', label: 'CP' },
     { id: 'vehicles', label: 'Vehículos' },
@@ -143,7 +144,7 @@ function CustomerList() {
       <Box display="flex" gap={2} alignItems="center" flexWrap="wrap" mb={3}>
         <TextField
           fullWidth
-          placeholder="Buscar por nombre, documento o patente..."
+          placeholder="Buscar por nombre, n° cliente, CUIT o patente..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{

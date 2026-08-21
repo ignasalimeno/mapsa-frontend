@@ -20,6 +20,9 @@ import {
   Chip,
   Stack,
   Divider,
+  Autocomplete,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
 import {
   Delete as DeleteIcon,
@@ -27,9 +30,12 @@ import {
   ReceiptLong,
   ContactPhone,
   Search as SearchIcon,
+  CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
+  CheckBox as CheckBoxIcon,
 } from "@mui/icons-material";
 import { LoadingOverlay, PageLayout, StyledDialog } from '../components';
 import ProductSearchModal from '../components/ProductSearchModal';
+import CustomerSearchModal from '../components/CustomerSearchModal';
 import { customerService, vehicleService, itemService, categoryService, warehouseService, workOrderService, invoiceService, deliveryNoteService } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 import { WORK_ORDER_STATUS } from '../constants/workOrderStatus';
@@ -91,7 +97,7 @@ function WorkOrderForm() {
   
   const [workOrder, setWorkOrder] = useState({
     id_customer: preselectedCustomerId || "",
-    id_vehicle: preselectedVehicleId || "",
+    vehicle_ids: preselectedVehicleId ? [preselectedVehicleId] : [],
     id_warehouse: "",
     description: "",
     km_at_entry: "",
@@ -103,6 +109,7 @@ function WorkOrderForm() {
   });
 
   const [remitoModalOpen, setRemitoModalOpen] = useState(false);
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [facturaModalOpen, setFacturaModalOpen] = useState(false);
   const [remitoForm, setRemitoForm] = useState({ id_external: '', notes: '' });
   const [facturaForm, setFacturaForm] = useState({ id_afip: '', invoice_type: 'A', invoice_date: new Date().toISOString().split('T')[0] });
@@ -139,7 +146,7 @@ function WorkOrderForm() {
       
       setWorkOrder({
         id_customer: workOrderData.customer_id,
-        id_vehicle: workOrderData.vehicle_id,
+        vehicle_ids: (workOrderData.vehicle_ids || []).map(String),
         id_warehouse: workOrderData.warehouse_id || '',
         description: workOrderData.description || '',
         km_at_entry: workOrderData.km_at_entry || '',
@@ -374,6 +381,7 @@ function WorkOrderForm() {
           id_warehouse: parseInt(workOrder.id_warehouse),
           external_id: externalId,
           open_date: workOrder.open_date,
+          vehicle_ids: workOrder.vehicle_ids.map(Number).filter(n => n > 0),
         });
 
         // 2. Reemplazar items (incluye recalculo de total en backend)
@@ -394,7 +402,7 @@ function WorkOrderForm() {
         const payload = {
           workOrder: {
             id_customer: parseInt(workOrder.id_customer),
-            id_vehicle: workOrder.id_vehicle ? parseInt(workOrder.id_vehicle) : null,
+            vehicle_ids: workOrder.vehicle_ids.map(Number).filter(n => n > 0),
             id_warehouse: parseInt(workOrder.id_warehouse),
             description: workOrder.description,
             km_at_entry: workOrder.km_at_entry ? parseInt(workOrder.km_at_entry) : null,
@@ -460,43 +468,87 @@ function WorkOrderForm() {
         {/* CLIENTE Y VEHÍCULO */}
         <FormSection icon={ContactPhone} label="Cliente y Vehículo">
           <Grid item xs={12} sx={{ width: '100%' }}>
-            <TextField
-              select
-              label="Cliente"
-              value={workOrder.id_customer}
-              onChange={(e) => {
-                setWorkOrder({...workOrder, id_customer: e.target.value, id_vehicle: ''});
-              }}
-              required
-              disabled={isEditing}
-              fullWidth
-              size="small"
-            >
-              <MenuItem value="">Seleccionar cliente...</MenuItem>
-              {customers.map((customer) => (
-                <MenuItem key={customer.id} value={customer.id}>
-                  {customer.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <TextField
+                label="Cliente"
+                value={(() => {
+                  const selected = customers.find((c) => String(c.id) === String(workOrder.id_customer));
+                  if (!selected) return '';
+                  return `#${selected.customer_number || '-'} — ${selected.name}`;
+                })()}
+                placeholder="Ningún cliente seleccionado..."
+                onClick={() => !isEditing && setCustomerSearchOpen(true)}
+                InputProps={{ readOnly: true }}
+                required
+                disabled={isEditing}
+                fullWidth
+                size="small"
+                sx={{
+                  cursor: isEditing ? 'default' : 'pointer',
+                  '& .MuiInputBase-input': { cursor: isEditing ? 'default' : 'pointer' },
+                }}
+              />
+              {!isEditing && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<SearchIcon />}
+                  onClick={() => setCustomerSearchOpen(true)}
+                  sx={{ mt: 0.5, minWidth: 130, height: 40 }}
+                >
+                  Buscar
+                </Button>
+              )}
+            </Stack>
           </Grid>
           <Grid item xs={12} sx={{ width: '100%' }}>
-            <TextField
-              select
-              label="Vehículo"
-              value={workOrder.id_vehicle}
-              onChange={(e) => setWorkOrder({...workOrder, id_vehicle: e.target.value})}
-              disabled={!workOrder.id_customer || isEditing}
+            <Autocomplete
+              multiple
+              options={vehicles.map((v) => ({ ...v, key: String(v.id) }))}
+              value={workOrder.vehicle_ids
+                .map((id) => vehicles.find((x) => String(x.id) === String(id)))
+                .filter(Boolean)
+                .map((v) => ({ ...v, key: String(v.id) }))}
+              onChange={(e, newValue) => {
+                setWorkOrder({ ...workOrder, vehicle_ids: newValue.map((v) => String(v.id)) });
+              }}
+              getOptionLabel={(option) => [option.plate, option.internal_number].filter(Boolean).join(' · ') || 'Sin patente'}
+              isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+              disabled={!workOrder.id_customer}
               fullWidth
               size="small"
-            >
-              <MenuItem value="">Sin vehículo</MenuItem>
-              {vehicles.map((vehicle) => (
-                <MenuItem key={vehicle.id} value={vehicle.id}>
-                  {vehicle.brand} {vehicle.model} - {vehicle.plate}
-                </MenuItem>
-              ))}
-            </TextField>
+              renderOption={(props, option, { selected }) => {
+                const { key, ...rest } = props;
+                return (
+                  <li key={key} {...rest}>
+                    {selected ? <CheckBoxIcon sx={{ mr: 1, fontSize: 20, color: 'primary.main' }} /> : <CheckBoxOutlineBlankIcon sx={{ mr: 1, fontSize: 20, color: 'action.active' }} />}
+                    <ListItemText primary={option.plate || 'Sin patente'} secondary={option.internal_number ? `N° Interno: ${option.internal_number}` : undefined} />
+                  </li>
+                );
+              }}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={[option.plate, option.internal_number].filter(Boolean).join(' · ') || 'Sin patente'}
+                      size="small"
+                      deleteIcon={<DeleteIcon />}
+                      {...tagProps}
+                    />
+                  );
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Vehículos"
+                  placeholder={workOrder.vehicle_ids.length === 0 ? 'Buscar por patente o n° interno...' : ''}
+                  helperText="Podés seleccionar más de un vehículo"
+                />
+              )}
+            />
           </Grid>
         </FormSection>
 
@@ -925,6 +977,19 @@ function WorkOrderForm() {
         items={items}
         categories={categories}
         onAddItem={handleModalAddItem}
+      />
+
+      <CustomerSearchModal
+        open={customerSearchOpen}
+        onClose={() => setCustomerSearchOpen(false)}
+        customers={customers}
+        onSelect={(customer) => {
+          setWorkOrder((prev) => ({
+            ...prev,
+            id_customer: customer.id,
+            vehicle_ids: [],
+          }));
+        }}
       />
     </PageLayout>
   );
