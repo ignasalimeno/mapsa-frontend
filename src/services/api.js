@@ -127,6 +127,7 @@ export const salesService = {
 
 export const utilityService = {
   list: (params) => api.get('/utilities', { params }),
+  exportCsv: (params) => api.get('/utilities/export', { params, responseType: 'blob' }),
 }
 
 // Categories
