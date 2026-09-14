@@ -83,9 +83,9 @@ function WorkOrderList() {
 
   const handleDelete = async (workOrder) => {
     const confirmed = await confirm({
-      title: 'Eliminar remito',
-      message: `Vas a eliminar el remito ${workOrder.external_id || '-'}. Esta accion no se puede deshacer.`,
-      confirmLabel: 'Eliminar',
+      title: 'Anular remito',
+      message: `Vas a anular el remito ${workOrder.external_id || '-'}. Se anularán también sus facturas vinculadas si las tuviera.`,
+      confirmLabel: 'Anular',
       confirmColor: 'error',
     })
     if (!confirmed) return
@@ -93,10 +93,10 @@ function WorkOrderList() {
     try {
       await workOrderService.delete(workOrder.id)
       await loadData()
-      notifySuccess('Remito eliminado correctamente')
+      notifySuccess('Remito anulado correctamente')
     } catch (err) {
-      setError('Error al eliminar remito')
-      notifyError('No se pudo eliminar el remito')
+      setError('Error al anular remito')
+      notifyError('No se pudo anular el remito')
       console.error(err)
     }
   }
@@ -112,9 +112,9 @@ function WorkOrderList() {
       label: 'N° de Remito',
       sortValue: (row) => (row.external_id || '').toString().toLowerCase(),
       render: (row) => row.external_id ? (
-        <Typography sx={{ fontWeight: 600 }}>{row.external_id}</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 'inherit' }}>{row.external_id}</Typography>
       ) : (
-        <Typography variant="body2" color="text.secondary">-</Typography>
+        <Typography sx={{ fontSize: 'inherit', color: 'text.secondary' }}>-</Typography>
       ),
     },
     {
@@ -158,7 +158,7 @@ function WorkOrderList() {
       align: 'right',
       sortValue: (row) => getWorkOrderAmount(row),
       render: (row) => (
-        <Typography sx={{ fontWeight: 600 }}>{formatCurrency(getWorkOrderAmount(row))}</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 'inherit' }}>{formatCurrency(getWorkOrderAmount(row))}</Typography>
       ),
     },
   ]
@@ -170,11 +170,13 @@ function WorkOrderList() {
         onClick={() => navigate(`/work-orders/${row.id}/edit`)}
         ariaLabel={`Abrir remito ${row.external_id || row.id}`}
       />
-      <TableActionIconButton
-        kind="delete"
-        onClick={() => handleDelete(row)}
-        ariaLabel={`Eliminar remito ${row.external_id || row.id}`}
-      />
+      {row.status !== 'CANCELLED' && (
+        <TableActionIconButton
+          kind="delete"
+          onClick={() => handleDelete(row)}
+          ariaLabel={`Anular remito ${row.external_id || row.id}`}
+        />
+      )}
     </Box>
   )
 

@@ -85,6 +85,7 @@ function CustomerForm() {
     postal_code: '',
     notes: '',
     cuit: '',
+    id_afip: '',
     tax_condition: 'CONSUMIDOR_FINAL',
     contact: '',
   })
@@ -227,10 +228,10 @@ function CustomerForm() {
             <Grid item xs={12} sm={6}>
               <TextField
                 {...fieldProps}
-                label="CUIT"
-                name="cuit"
-                value={customer.cuit}
-                placeholder="20-12345678-9"
+                label="ID AFIP"
+                name="id_afip"
+                value={customer.id_afip || ''}
+                placeholder="CUIT / CDI"
               />
             </Grid>
             <Grid item xs={12} sm={6}>

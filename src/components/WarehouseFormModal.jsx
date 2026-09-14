@@ -1,44 +1,41 @@
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
   TextField,
   Alert,
   Grid,
-  Typography,
   Box,
-  Paper,
   CircularProgress,
+  Stack,
+  Paper,
+  Divider,
+  Typography,
   Switch,
   FormControlLabel
 } from '@mui/material'
-import { Save as SaveIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  Warehouse as WarehouseIcon,
+  Info as InfoIcon
+} from '@mui/icons-material'
 import { warehouseService } from '../services/api'
+import { StyledDialog } from '../components'
 
-const BORDER = '1px solid #d4d4d4'
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}>
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
 
 const initialWarehouse = {
   name: '',
   description: '',
   is_active: true
-}
-
-function Section({ label, children }) {
-  return (
-    <Paper sx={{ border: BORDER, borderRadius: 0 }}>
-      <Box sx={{ backgroundColor: '#f0f0f0', px: 2, py: 0.75, borderBottom: BORDER }}>
-        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#444' }}>
-          {label}
-        </Typography>
-      </Box>
-      <Box sx={{ p: 2 }}>
-        {children}
-      </Box>
-    </Paper>
-  )
 }
 
 function WarehouseFormModal({ open, onClose, onSaved, warehouseId }) {
@@ -106,106 +103,89 @@ function WarehouseFormModal({ open, onClose, onSaved, warehouseId }) {
   }
 
   return (
-    <Dialog
+    <StyledDialog
       open={open}
       onClose={handleClose}
+      title={isEdit ? 'Editar Depósito' : 'Nuevo Depósito'}
+      icon={<WarehouseIcon />}
       maxWidth="sm"
-      fullWidth
-      disableEscapeKeyDown={saving}
-      PaperProps={{
-        sx: { borderRadius: 0, border: BORDER, boxShadow: 'none' }
-      }}
-    >
-      <Box component="form" noValidate onSubmit={handleSubmit}>
-        <DialogTitle sx={{ px: 3, py: 2, borderBottom: BORDER, backgroundColor: '#fafafa' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>
-            {isEdit ? 'Editar Depósito' : 'Nuevo Depósito'}
-          </Typography>
-        </DialogTitle>
-
-        <DialogContent sx={{ px: 3, py: 2 }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={32} />
-            </Box>
-          ) : (
-            <>
-              {error && (
-                <Alert severity="error" sx={{ mb: 2, borderRadius: 0, border: BORDER }}>
-                  {error}
-                </Alert>
-              )}
-
-              <Section label="Identificación">
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Nombre"
-                      name="name"
-                      value={warehouse.name}
-                      onChange={handleChange}
-                      required
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Grid>
-                </Grid>
-              </Section>
-
-              <Box sx={{ mt: 1.5 }}>
-                <Section label="Complementario">
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Descripción"
-                        name="description"
-                        value={warehouse.description}
-                        onChange={handleChange}
-                        multiline
-                        rows={3}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Grid>
-                    {isEdit && (
-                      <Grid item xs={12}>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={warehouse.is_active}
-                              onChange={handleChange}
-                              name="is_active"
-                            />
-                          }
-                          label={warehouse.is_active ? 'Activo' : 'Inactivo'}
-                        />
-                      </Grid>
-                    )}
-                  </Grid>
-                </Section>
-              </Box>
-            </>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, py: 1.5, borderTop: BORDER, backgroundColor: '#fafafa' }}>
+      actions={
+        <>
           <Button onClick={handleClose} disabled={saving} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Cancelar
           </Button>
           <Button
             type="submit"
             variant="contained"
+            form="warehouse-form"
             startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             disabled={saving || loading}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </Button>
-        </DialogActions>
+        </>
+      }
+    >
+      <Box component="form" id="warehouse-form" noValidate onSubmit={handleSubmit}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+          <Stack spacing={2.5}>
+            {error && (
+              <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>
+            )}
+
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+              <SectionHeader icon={WarehouseIcon} label="Identificación" />
+              <Divider sx={{ mb: 2 }} />
+              <TextField
+                fullWidth
+                label="Nombre"
+                name="name"
+                value={warehouse.name}
+                onChange={handleChange}
+                required
+                size="small"
+                variant="outlined"
+              />
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+              <SectionHeader icon={InfoIcon} label="Complementario" />
+              <Divider sx={{ mb: 2 }} />
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Descripción"
+                  name="description"
+                  value={warehouse.description}
+                  onChange={handleChange}
+                  multiline
+                  rows={3}
+                  size="small"
+                  variant="outlined"
+                />
+                {isEdit && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={warehouse.is_active}
+                        onChange={handleChange}
+                        name="is_active"
+                      />
+                    }
+                    label={warehouse.is_active ? 'Activo' : 'Inactivo'}
+                  />
+                )}
+              </Stack>
+            </Paper>
+          </Stack>
+        )}
       </Box>
-    </Dialog>
+    </StyledDialog>
   )
 }
 

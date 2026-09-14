@@ -72,17 +72,6 @@ function CategoryList() {
     }
   }
 
-  const getSortableValue = (cat, field) => {
-    switch (field) {
-      case 'name':
-        return cat.name || ''
-      case 'description':
-        return cat.description || ''
-      default:
-        return cat[field] ?? ''
-    }
-  }
-
   const columns = [
     { id: 'name', label: 'Categoría' },
     { id: 'description', label: 'Descripción' },

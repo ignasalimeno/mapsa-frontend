@@ -25,7 +25,7 @@ import {
   DialogActions
 } from '@mui/material'
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
-import { accountService, customerService, invoicePaymentService, invoiceService } from '../services/api'
+import { accountService, customerService, invoicePaymentService, invoiceService, receiptService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { PageLayout } from '../components'
 import { useNotify } from '../context'
@@ -79,11 +79,14 @@ function AccountDetail() {
     receipt_date: '',
   })
   const [movementForm, setMovementForm] = useState({
-    type: 'PAYMENT', // PAYMENT, DEBIT_NOTE, CREDIT_NOTE
+    type: 'PAYMENT', // PAYMENT, RECEIPT, DEBIT_NOTE, CREDIT_NOTE
     amount: '',
     date: new Date().toISOString().slice(0,10),
     description: '',
-    external_id: ''
+    external_id: '',
+    receipt_number: '',
+    receipt_date: new Date().toISOString().slice(0,10),
+    iva_percentage: '21',
   })
   const [allocations, setAllocations] = useState({})
   const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false)
@@ -255,14 +258,39 @@ function AccountDetail() {
     setPaymentLines((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const openMovementModal = async (type = 'PAYMENT') => {
+    const base = {
+      type,
+      amount: '',
+      date: new Date().toISOString().slice(0,10),
+      description: '',
+      external_id: '',
+      receipt_number: '',
+      receipt_date: new Date().toISOString().slice(0,10),
+      iva_percentage: '21',
+    }
+    if (type === 'RECEIPT') {
+      try {
+        const res = await receiptService.nextNumber()
+        base.receipt_number = res.data?.receipt_number || ''
+      } catch (e) {
+        console.error('No se pudo obtener el próximo número de recibo', e)
+      }
+    }
+    setPaymentLines([])
+    setAllocations({})
+    setMovementForm(base)
+    setMovementModalOpen(true)
+  }
+
   const splitAllocationsForAmount = (baseAllocations, lineAmount) => {
     const totalBase = baseAllocations.reduce((sum, a) => sum + Number(a.amount || 0), 0)
-    const lineInt = Math.round(Number(lineAmount || 0))
+    const lineInt = Math.round(Number(lineAmount || 0) * 100) / 100
     if (lineInt <= 0 || totalBase <= 0) return []
 
     const withFraction = baseAllocations.map((a) => {
       const raw = (Number(a.amount || 0) / totalBase) * lineInt
-      const floored = Math.floor(raw)
+      const floored = Math.floor(raw * 100) / 100
       return {
         invoice_id: a.invoice_id,
         amount: floored,
@@ -271,13 +299,13 @@ function AccountDetail() {
     })
 
     let currentSum = withFraction.reduce((sum, a) => sum + a.amount, 0)
-    let remainder = lineInt - currentSum
+    let remainder = Math.round((lineInt - currentSum) * 100) / 100
 
     withFraction.sort((a, b) => b.fraction - a.fraction)
     let idx = 0
-    while (remainder > 0 && withFraction.length > 0) {
-      withFraction[idx % withFraction.length].amount += 1
-      remainder -= 1
+    while (remainder > 0.009 && withFraction.length > 0) {
+      withFraction[idx % withFraction.length].amount = Math.round((withFraction[idx % withFraction.length].amount + 0.01) * 100) / 100
+      remainder = Math.round((remainder - 0.01) * 100) / 100
       idx += 1
     }
 
@@ -327,19 +355,19 @@ function AccountDetail() {
   // Submit unified movement
   const handleSubmitMovement = async () => {
     try {
-      if (movementForm.type === 'PAYMENT') {
+      const isPaymentLike = movementForm.type === 'PAYMENT' || movementForm.type === 'RECEIPT'
+      if (isPaymentLike) {
         if (paymentLines.length === 0) {
           notifyError('Agrega al menos una forma de pago')
           return
         }
 
-        const totalAmount = Math.round(totalPaymentLines)
+        const totalAmount = Math.round(totalPaymentLines * 100) / 100
         if (!totalAmount || totalAmount <= 0) {
           notifyError('El total de formas de pago debe ser mayor a 0')
           return
         }
 
-        // Payment with allocations (base)
         const allocArray = Object.entries(allocations)
           .map(([invoice_id, amt]) => ({ invoice_id: Number(invoice_id), amount: parseFloat(amt || '0') }))
           .filter(a => a.amount > 0)
@@ -350,49 +378,81 @@ function AccountDetail() {
           return
         }
 
-        for (const line of paymentLines) {
-          const lineAmount = Math.round(Number(line.amount || 0))
-          if (lineAmount <= 0) continue
-
-          const lineAllocations = splitAllocationsForAmount(allocArray, lineAmount)
-          const retentionNote = line.method === 'RETENTION' && line.retention_type
-            ? `Retención ${line.retention_type}`
-            : ''
-
-          const payload = {
-            total_amount: lineAmount,
-            method: line.method,
-            payment_date: movementForm.date,
-            notes: [movementForm.description, line.notes, retentionNote].filter(Boolean).join(' | '),
-            cheque_number: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.cheque_number || null) : null,
-            bank: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.bank || null) : null,
-            receipt_number: line.receipt_number || null,
-            receipt_date: line.receipt_date || null,
-            allocations: lineAllocations,
+        if (movementForm.type === 'RECEIPT') {
+          if (!movementForm.receipt_number?.trim()) {
+            notifyError('Ingrese el número de recibo')
+            return
           }
+          const lines = paymentLines
+            .map((line) => ({
+              method: line.method,
+              amount: Math.round(Number(line.amount || 0) * 100) / 100,
+              retention_type: line.retention_type || null,
+              cheque_number: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.cheque_number || null) : null,
+              bank: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.bank || null) : null,
+              notes: line.notes || null,
+            }))
+            .filter((line) => line.amount > 0)
 
-          const response = await accountService.createCustomerPayment(id, payload)
+          const response = await receiptService.create({
+            customer_id: Number(id),
+            lines,
+            allocations: allocArray,
+            receipt_number: movementForm.receipt_number.trim(),
+            receipt_date: movementForm.receipt_date || movementForm.date || null,
+            notes: movementForm.description || '',
+          })
           if (response.data?.error) {
             notifyError(response.data.error)
             return
           }
+          notifySuccess('Recibo generado exitosamente')
+        } else {
+          for (const line of paymentLines) {
+            const lineAmount = Math.round(Number(line.amount || 0) * 100) / 100
+            if (lineAmount <= 0) continue
+            const lineAllocations = splitAllocationsForAmount(allocArray, lineAmount)
+            const retentionNote = line.method === 'RETENTION' && line.retention_type
+              ? `Retención ${line.retention_type}`
+              : ''
+            const payload = {
+              total_amount: lineAmount,
+              method: line.method,
+              payment_date: movementForm.date,
+              notes: [movementForm.description, line.notes, retentionNote].filter(Boolean).join(' | '),
+              cheque_number: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.cheque_number || null) : null,
+              bank: (line.method === 'CHEQUE' || line.method === 'ECHEQ') ? (line.bank || null) : null,
+              allocations: lineAllocations,
+            }
+            const response = await accountService.createCustomerPayment(id, payload)
+            if (response.data?.error) {
+              notifyError(response.data.error)
+              return
+            }
+          }
+          notifySuccess('Pago registrado exitosamente')
         }
-        
-        notifySuccess('Pagos registrados exitosamente')
       } else {
-        const amount = parseFloat(movementForm.amount || '0')
-        if (!amount || amount <= 0) {
+        const monto = parseFloat(movementForm.amount || '0')
+        if (!monto || monto <= 0) {
           notifyError('Ingrese un monto válido')
           return
         }
+        if (!movementForm.external_id) {
+          notifyError('Ingrese el número')
+          return
+        }
+        const ivaPct = Number(movementForm.iva_percentage || 0)
+        const total = Math.round(monto * (1 + ivaPct / 100) * 100) / 100
 
         // Debit/Credit Note
         const payload = {
-          amount: amount,
+          amount: total,
           description: movementForm.description,
           type: movementForm.type,
           direction: movementForm.type === 'DEBIT_NOTE' ? 'DEBIT' : 'CREDIT',
-          external_id: movementForm.external_id
+          external_id: movementForm.external_id,
+          iva_percentage: ivaPct,
         }
         await accountService.createMovement(id, payload)
         notifySuccess('Movimiento registrado exitosamente')
@@ -407,7 +467,10 @@ function AccountDetail() {
         amount: '',
         date: new Date().toISOString().split('T')[0],
         description: '',
-        external_id: ''
+        external_id: '',
+        receipt_number: '',
+        receipt_date: new Date().toISOString().split('T')[0],
+        iva_percentage: '21',
       })
       
       // Recargar datos para reflejar los cambios
@@ -419,6 +482,11 @@ function AccountDetail() {
       setError(errorMsg)
     }
   }
+
+  const noteNeto = Number(movementForm.amount || 0)
+  const noteIvaPct = Number(movementForm.iva_percentage || 0)
+  const noteTotal = Math.round(noteNeto * (1 + noteIvaPct / 100) * 100) / 100
+  const noteIva = Math.round((noteTotal - noteNeto) * 100) / 100
 
   if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
   if (error) return <Alert severity="error">{error}</Alert>
@@ -438,13 +506,12 @@ function AccountDetail() {
                 Saldo: {formatCurrency(account.balance || 0)}
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setMovementModalOpen(true)}
-            >
-              Registrar Movimiento
-            </Button>
+            <Box display="flex" gap={1} flexWrap="wrap">
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => openMovementModal('PAYMENT')}>Registrar Pago</Button>
+              <Button variant="outlined" startIcon={<AddIcon />} onClick={() => openMovementModal('RECEIPT')}>Generar Recibo</Button>
+              <Button variant="outlined" onClick={() => openMovementModal('CREDIT_NOTE')}>Nota de Crédito</Button>
+              <Button variant="outlined" onClick={() => openMovementModal('DEBIT_NOTE')}>Nota de Débito</Button>
+            </Box>
           </Box>
         </CardContent>
       </Card>
@@ -521,6 +588,8 @@ function AccountDetail() {
                   <TableCell>N° Recibo</TableCell>
                   <TableCell>Fecha Recibo</TableCell>
                   <TableCell>Descripción</TableCell>
+                  <TableCell align="right">Neto</TableCell>
+                  <TableCell align="right">IVA</TableCell>
                   <TableCell align="right">Débito</TableCell>
                   <TableCell align="right">Crédito</TableCell>
                   <TableCell align="center">Acciones</TableCell>
@@ -536,6 +605,9 @@ function AccountDetail() {
                         size="small"
                         color={movement.type === 'PAYMENT' || movement.type === 'CREDIT_NOTE' ? 'success' : 'default'}
                       />
+                      {movement.voided && (
+                        <Chip label="Anulado" size="small" color="error" sx={{ ml: 0.5 }} />
+                      )}
                     </TableCell>
                     <TableCell>
                       {getMovementReference(movement) !== '-' ? (
@@ -545,10 +617,19 @@ function AccountDetail() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {movement.receipt_number ? (
-                        <Chip label={movement.receipt_number} size="small" variant="outlined" color="primary" />
+                      {movement.id_receipt ? (
+                        <Chip
+                          label={movement.receipt_number || `#${movement.id_receipt}`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          onClick={() => navigate(`/receipts/${movement.id_receipt}`)}
+                          sx={{ cursor: 'pointer' }}
+                        />
                       ) : (
-                        '-'
+                        movement.receipt_number ? (
+                          <Chip label={movement.receipt_number} size="small" variant="outlined" color="primary" />
+                        ) : '-'
                       )}
                     </TableCell>
                     <TableCell>
@@ -564,6 +645,12 @@ function AccountDetail() {
                         return movement.description
                       })() : movement.description}
                     </TableCell>
+                    <TableCell align="right">
+                      {movement.neto != null ? formatCurrency(movement.neto) : '-'}
+                    </TableCell>
+                    <TableCell align="right">
+                      {movement.iva != null ? formatCurrency(movement.iva) : '-'}
+                    </TableCell>
                     <TableCell align="right" sx={{ color: 'error.main' }}>
                       {movement.direction === 'DEBIT' ? formatCurrency(movement.amount) : '-'}
                     </TableCell>
@@ -571,7 +658,7 @@ function AccountDetail() {
                       {movement.direction === 'CREDIT' ? formatCurrency(movement.amount) : '-'}
                     </TableCell>
                     <TableCell align="center">
-                      {movement.type === 'PAYMENT' ? (
+                      {movement.type === 'PAYMENT' && !movement.voided ? (
                         <Button
                           size="small"
                           color="error"
@@ -586,7 +673,7 @@ function AccountDetail() {
                 ))}
                 {(!account.movements || account.movements.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">Sin movimientos</TableCell>
+                    <TableCell colSpan={11} align="center">Sin movimientos</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -597,84 +684,77 @@ function AccountDetail() {
 
       {/* Unified Movement Modal */}
       <Dialog open={movementModalOpen} onClose={() => setMovementModalOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Registrar Movimiento</DialogTitle>
+        <DialogTitle>
+          {movementForm.type === 'PAYMENT' ? 'Registrar Pago'
+            : movementForm.type === 'RECEIPT' ? 'Generar Recibo'
+            : movementForm.type === 'CREDIT_NOTE' ? 'Nueva Nota de Crédito'
+            : 'Nueva Nota de Débito'}
+        </DialogTitle>
         <DialogContent sx={{ pt: 1.25 }}>
           <Grid container spacing={2} sx={{ mt: 0.25 }}>
-            {/* Tipo de Movimiento */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Tipo de Movimiento"
-                value={movementForm.type}
-                onChange={(e) => {
-                  setMovementForm({ ...movementForm, type: e.target.value })
-                  setAllocations({}) // Reset allocations when changing type
-                }}
-                fullWidth
-                required
-              >
-                <MenuItem value="PAYMENT">Pago</MenuItem>
-                <MenuItem value="DEBIT_NOTE">Nota de Débito</MenuItem>
-                <MenuItem value="CREDIT_NOTE">Nota de Crédito</MenuItem>
-              </TextField>
-            </Grid>
-
-            {/* Monto (solo para notas) */}
-            {movementForm.type !== 'PAYMENT' && (
-              <Grid item xs={12} md={6}>
-                <TextField
-                  type="number"
-                  label="Monto"
-                  value={movementForm.amount}
-                  onChange={(e) => setMovementForm({ ...movementForm, amount: e.target.value })}
-                  fullWidth
-                  required
-                  inputProps={{ step: 0.01, min: 0 }}
-                />
-              </Grid>
+            {(movementForm.type === 'DEBIT_NOTE' || movementForm.type === 'CREDIT_NOTE') ? (
+              <>
+                <Grid item xs={12} md={4}>
+                  <TextField type="number" label="Número" value={movementForm.external_id} onChange={(e) => setMovementForm({ ...movementForm, external_id: e.target.value })} fullWidth required inputProps={{ min: 0 }} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField type="number" label="Monto (neto)" value={movementForm.amount} onChange={(e) => setMovementForm({ ...movementForm, amount: e.target.value })} fullWidth required inputProps={{ step: 0.01, min: 0 }} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField select label="IVA" value={movementForm.iva_percentage} onChange={(e) => setMovementForm({ ...movementForm, iva_percentage: e.target.value })} fullWidth>
+                    <MenuItem value="0">0%</MenuItem>
+                    <MenuItem value="10.5">10,5%</MenuItem>
+                    <MenuItem value="21">21%</MenuItem>
+                    <MenuItem value="27">27%</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField type="date" label="Fecha" value={movementForm.date} onChange={(e) => setMovementForm({ ...movementForm, date: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid item xs={12} md={8}>
+                  <TextField label="Descripción" value={movementForm.description} onChange={(e) => setMovementForm({ ...movementForm, description: e.target.value })} fullWidth />
+                </Grid>
+                <Grid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', gap: 4 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Neto</Typography>
+                      <Typography variant="body1">{formatCurrency(noteNeto)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">IVA</Typography>
+                      <Typography variant="body1">{formatCurrency(noteIva)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Total</Typography>
+                      <Typography variant="body1" fontWeight={700}>{formatCurrency(noteTotal)}</Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+              </>
+            ) : (
+              <>
+                <Grid item xs={12} md={6}>
+                  <TextField type="date" label="Fecha" value={movementForm.date} onChange={(e) => setMovementForm({ ...movementForm, date: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+                </Grid>
+                {movementForm.type === 'RECEIPT' && (
+                  <>
+                    <Grid item xs={12} md={6}>
+                      <TextField label="N° Recibo" value={movementForm.receipt_number} onChange={(e) => setMovementForm({ ...movementForm, receipt_number: e.target.value })} fullWidth required placeholder="Número de recibo" />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField type="date" label="Fecha Recibo" value={movementForm.receipt_date} onChange={(e) => setMovementForm({ ...movementForm, receipt_date: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+                    </Grid>
+                  </>
+                )}
+                <Grid item xs={12}>
+                  <TextField label="Descripción / Notas" value={movementForm.description} onChange={(e) => setMovementForm({ ...movementForm, description: e.target.value })} fullWidth multiline rows={2} placeholder={movementForm.type === 'PAYMENT' ? 'Información adicional sobre el pago' : 'Información adicional del recibo'} />
+                </Grid>
+              </>
             )}
-
-            {/* Fecha */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                type="date"
-                label="Fecha"
-                value={movementForm.date}
-                onChange={(e) => setMovementForm({ ...movementForm, date: e.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            {/* Campo Número AFIP para Notas de Crédito/Débito */}
-            {(movementForm.type === 'DEBIT_NOTE' || movementForm.type === 'CREDIT_NOTE') && (
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Número AFIP / ID Externo"
-                  value={movementForm.external_id}
-                  onChange={(e) => setMovementForm({ ...movementForm, external_id: e.target.value })}
-                  fullWidth
-                  placeholder="Ej: NC-0001-00000123"
-                />
-              </Grid>
-            )}
-
-            {/* Descripción */}
-            <Grid item xs={12}>
-              <TextField
-                label="Descripción / Notas"
-                value={movementForm.description}
-                onChange={(e) => setMovementForm({ ...movementForm, description: e.target.value })}
-                fullWidth
-                multiline
-                rows={2}
-                placeholder={movementForm.type === 'PAYMENT' ? 'Información adicional sobre el pago' : 'Motivo de la nota'}
-              />
-            </Grid>
           </Grid>
 
-          {/* Invoice Allocation (solo para Pagos) */}
-          {movementForm.type === 'PAYMENT' && (
+          {/* Invoice Allocation (Pago / Recibo) */}
+          {(movementForm.type === 'PAYMENT' || movementForm.type === 'RECEIPT') && (
             <Box sx={{ mt: 3 }}>
               <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -692,8 +772,6 @@ function AccountDetail() {
                       <TableRow>
                         <TableCell>Método</TableCell>
                         <TableCell align="right">Monto</TableCell>
-                        <TableCell>N° Recibo</TableCell>
-                        <TableCell>Fecha Recibo</TableCell>
                         <TableCell>Detalle</TableCell>
                         <TableCell align="center">Acciones</TableCell>
                       </TableRow>
@@ -703,8 +781,6 @@ function AccountDetail() {
                         <TableRow key={`${line.method}-${index}`}>
                           <TableCell>{line.method === 'RETENTION' ? `Retención${line.retention_type ? ` - ${line.retention_type}` : ''}` : (paymentMethodLabels[line.method] || line.method)}</TableCell>
                           <TableCell align="right">{formatCurrency(line.amount)}</TableCell>
-                          <TableCell>{line.receipt_number || '-'}</TableCell>
-                          <TableCell>{line.receipt_date ? formatDate(line.receipt_date) : '-'}</TableCell>
                           <TableCell>{line.notes || '-'}</TableCell>
                           <TableCell align="center">
                             <Button size="small" onClick={() => openPaymentLineModal(line, index)}>Editar</Button>
@@ -816,7 +892,7 @@ function AccountDetail() {
         <DialogActions>
           <Button onClick={() => setMovementModalOpen(false)}>Cancelar</Button>
           <Button variant="contained" onClick={handleSubmitMovement}>
-            {movementForm.type === 'PAYMENT' ? 'Registrar Pago' : 'Registrar Nota'}
+            {movementForm.type === 'PAYMENT' ? 'Registrar Pago' : movementForm.type === 'RECEIPT' ? 'Generar Recibo' : 'Registrar Nota'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -860,27 +936,6 @@ function AccountDetail() {
                 onChange={(e) => setPaymentLineForm({ ...paymentLineForm, amount: e.target.value })}
                 fullWidth
                 inputProps={{ step: 0.01, min: 0 }}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                label="N° de Recibo (opcional)"
-                value={paymentLineForm.receipt_number}
-                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, receipt_number: e.target.value })}
-                fullWidth
-                placeholder="Número de recibo impreso"
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                type="date"
-                label="Fecha de Recibo (opcional)"
-                value={paymentLineForm.receipt_date}
-                onChange={(e) => setPaymentLineForm({ ...paymentLineForm, receipt_date: e.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
@@ -967,15 +1022,15 @@ function AccountDetail() {
       </Dialog>
 
       <Dialog open={deletePaymentModalOpen} onClose={() => setDeletePaymentModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Eliminar Pago</DialogTitle>
+        <DialogTitle>Anular Pago</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            ¿Seguro que querés borrar este pago? Esta acción va a desasignar sus montos de facturas y ajustar el saldo automáticamente.
+            ¿Seguro que querés anular este pago? Se desasignarán sus montos de las facturas y se ajustará el saldo automáticamente.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeletePaymentModalOpen(false)}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={handleDeletePayment}>Borrar Pago</Button>
+          <Button color="error" variant="contained" onClick={handleDeletePayment}>Anular Pago</Button>
         </DialogActions>
       </Dialog>
     </PageLayout>

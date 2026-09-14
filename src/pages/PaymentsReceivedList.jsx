@@ -6,6 +6,8 @@ import {
   Card,
   CardContent,
   Chip,
+  Checkbox,
+  FormControlLabel,
   Grid,
   InputAdornment,
   MenuItem,
@@ -42,12 +44,18 @@ const paymentTypeLabel = {
 }
 
 const columns = [
-  { id: 'type', label: 'Tipo', width: 100, render: (row) => paymentTypeLabel[row.type] || row.type },
+  { id: 'type', label: 'Tipo', width: 150, render: (row) => (
+    <Box sx={{ display: 'inline-flex', gap: 0.5, alignItems: 'center' }}>
+      <span>{paymentTypeLabel[row.type] || row.type}</span>
+      {row.voided && <Chip label="Anulado" size="small" color="error" />}
+    </Box>
+  ) },
+  { id: 'receipt_number', label: 'N° Recibo', width: 110, mono: true, render: (row) => row.receipt_number || '-' },
   { id: 'retention_detail', label: 'Detalle Retención', width: 180, render: (row) => row.retention_detail || '-' },
   { id: 'date', label: 'Fecha', width: 110, render: (row) => formatDate(row.date) },
   { id: 'customer_name', label: 'Cliente', width: 200 },
   { id: 'province', label: 'Provincia', width: 130, render: (row) => row.province || '-' },
-  { id: 'amount', label: 'Monto', width: 130, align: 'right', render: (row) => formatCurrency(row.amount || 0) },
+  { id: 'amount', label: 'Monto', width: 130, align: 'right', mono: true, render: (row) => formatCurrency(row.amount || 0) },
 ]
 
 function PaymentsReceivedList() {
@@ -62,6 +70,7 @@ function PaymentsReceivedList() {
     payment_type: '',
     date_from: '',
     date_to: '',
+    include_voided: false,
   })
 
   const provinceOptions = [
@@ -131,7 +140,7 @@ function PaymentsReceivedList() {
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                placeholder="Buscar por cliente, provincia o descripción"
+                placeholder="Buscar por cliente, provincia, recibo o descripción"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 InputProps={{
@@ -201,9 +210,20 @@ function PaymentsReceivedList() {
               />
             </Grid>
             <Grid item xs={12}>
-              <Box display="flex" gap={1} justifyContent="flex-end">
-                <Button variant="contained" onClick={loadPayments}>Aplicar filtros</Button>
-                <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExport}>Exportar CSV</Button>
+              <Box display="flex" gap={2} alignItems="center" justifyContent="space-between">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={filters.include_voided}
+                      onChange={(e) => setFilters((prev) => ({ ...prev, include_voided: e.target.checked }))}
+                    />
+                  }
+                  label="Incluir anulados"
+                />
+                <Box display="flex" gap={1}>
+                  <Button variant="contained" onClick={loadPayments}>Aplicar filtros</Button>
+                  <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExport}>Exportar CSV</Button>
+                </Box>
               </Box>
             </Grid>
           </Grid>

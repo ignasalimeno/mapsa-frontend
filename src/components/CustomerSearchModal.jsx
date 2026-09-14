@@ -74,7 +74,7 @@ function CustomerSearchModal({ open, onClose, customers, onSelect }) {
             <TableRow sx={{ backgroundColor: 'grey.50' }}>
               <TableCell sx={{ fontWeight: 600 }} style={{ width: 90 }}>N° Cliente</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Nombre</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>CUIT/CUIL</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>ID AFIP</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Vehículos</TableCell>
               <TableCell align="center" sx={{ fontWeight: 600 }} style={{ width: 110 }}>Acción</TableCell>
             </TableRow>
@@ -107,7 +107,7 @@ function CustomerSearchModal({ open, onClose, customers, onSelect }) {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{customer.cuit || '-'}</Typography>
+                    <Typography variant="body2">{(customer.id_afip || customer.cuit) || '-'}</Typography>
                   </TableCell>
                   <TableCell>
                     {customer.vehicles ? (

@@ -6,6 +6,8 @@ import {
   Card,
   CardContent,
   Chip,
+  Checkbox,
+  FormControlLabel,
   Grid,
   InputAdornment,
   MenuItem,
@@ -23,6 +25,7 @@ const statusMap = {
   NEW: { label: 'Pendiente', color: 'warning' },
   PARTIAL_PAID: { label: 'Parcial', color: 'info' },
   PAID: { label: 'Pagada', color: 'success' },
+  CANCELLED: { label: 'Anulada', color: 'error' },
 }
 
 const saleTypeMap = {
@@ -43,11 +46,14 @@ const columns = [
     label: 'Tipo',
     width: 130,
     render: (row) => (
-      <Chip
-        size="small"
-        label={saleTypeMap[row.sale_type]?.label || row.sale_type}
-        color={saleTypeMap[row.sale_type]?.color || 'default'}
-      />
+      <Box sx={{ display: 'inline-flex', gap: 0.5, alignItems: 'center' }}>
+        <Chip
+          size="small"
+          label={saleTypeMap[row.sale_type]?.label || row.sale_type}
+          color={saleTypeMap[row.sale_type]?.color || 'default'}
+        />
+        {row.voided && <Chip size="small" label="Anulada" color="error" />}
+      </Box>
     ),
   },
   { id: 'number', label: 'Número', width: 140, mono: true },
@@ -91,6 +97,7 @@ function SalesList() {
     sale_type: '',
     date_from: '',
     date_to: '',
+    include_voided: false,
   })
 
   useEffect(() => {
@@ -204,9 +211,20 @@ function SalesList() {
               />
             </Grid>
             <Grid item xs={12}>
-              <Box display="flex" gap={1} justifyContent="flex-end">
-                <Button variant="contained" onClick={loadSales}>Aplicar filtros</Button>
-                <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExport}>Exportar CSV</Button>
+              <Box display="flex" gap={2} alignItems="center" justifyContent="space-between">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={filters.include_voided}
+                      onChange={(e) => setFilters((prev) => ({ ...prev, include_voided: e.target.checked }))}
+                    />
+                  }
+                  label="Incluir anuladas"
+                />
+                <Box display="flex" gap={1}>
+                  <Button variant="contained" onClick={loadSales}>Aplicar filtros</Button>
+                  <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExport}>Exportar CSV</Button>
+                </Box>
               </Box>
             </Grid>
           </Grid>

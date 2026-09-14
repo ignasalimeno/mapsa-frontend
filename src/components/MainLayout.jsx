@@ -25,9 +25,9 @@ import {
   People as PeopleIcon,
   Assignment as WorkOrderIcon,
   ReceiptLong as InvoiceIcon,
-  PointOfSale as SalesIcon,
-  AccountBalanceWallet as PaymentsReceivedIcon,
+  Receipt as ReceiptIcon,
   Assessment as UtilityIcon,
+  BarChart as ReportIcon,
   Inventory as InventoryIcon,
   Category as CategoryIcon,
   Warehouse as WarehouseIcon,
@@ -50,44 +50,68 @@ const mainMenuItems = [
   { text: 'Clientes', icon: <PeopleIcon />, path: '/customers' },
   { text: 'Remitos', icon: <WorkOrderIcon />, path: '/work-orders' },
   { text: 'Facturas', icon: <InvoiceIcon />, path: '/invoices' },
-  { text: 'Ventas', icon: <SalesIcon />, path: '/sales' },
-  { text: 'Pagos Recibidos', icon: <PaymentsReceivedIcon />, path: '/payments/received' },
-  { text: 'Utilidades', icon: <UtilityIcon />, path: '/utilities' },
+  { text: 'Recibos', icon: <ReceiptIcon />, path: '/receipts' },
+];
+
+const menuGroups = [
+  {
+    id: 'reportes',
+    text: 'Reportes',
+    icon: <ReportIcon />,
+    items: [
+      { text: 'Equipos Vendidos', icon: <InventoryIcon />, path: '/sales/products' },
+      { text: 'Utilidades', icon: <UtilityIcon />, path: '/utilities' },
+    ],
+  },
+  {
+    id: 'maestros',
+    text: 'Maestros',
+    icon: <MastersIcon />,
+    items: [
+      { text: 'Productos', icon: <InventoryIcon />, path: '/products' },
+      { text: 'Categorías', icon: <CategoryIcon />, path: '/categories' },
+      { text: 'Depósitos', icon: <WarehouseIcon />, path: '/warehouses' },
+    ],
+  },
+];
+
+const bottomMenuItems = [
   { text: 'Stock', icon: <StockIcon />, path: '/stock' },
   { text: 'Actualización Masiva', icon: <PriceUpdateIcon />, path: '/products/bulk-price-update' },
 ];
 
-const mastersMenuItems = [
-  { text: 'Productos', icon: <InventoryIcon />, path: '/products' },
-  { text: 'Categorías', icon: <CategoryIcon />, path: '/categories' },
-  { text: 'Depósitos', icon: <WarehouseIcon />, path: '/warehouses' },
-]
-
 export default function MainLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [mastersOpen, setMastersOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState({ reportes: false, maestros: false });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
   const { channel, setChannel, channels } = useChannel();
   const currentDrawerWidth = collapsed ? collapsedDrawerWidth : expandedDrawerWidth;
-  const isMastersPath = mastersMenuItems.some((item) => location.pathname.startsWith(item.path))
 
   useEffect(() => {
-    if (isMastersPath) {
-      setMastersOpen(true)
-    }
-  }, [isMastersPath])
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      menuGroups.forEach((group) => {
+        if (group.items.some((item) => location.pathname.startsWith(item.path)) && !prev[group.id]) {
+          next[group.id] = true;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [location.pathname]);
 
-  const handleMastersToggle = () => {
+  const handleGroupToggle = (id) => {
     if (collapsed) {
-      setCollapsed(false)
-      setMastersOpen(true)
-      return
+      setCollapsed(false);
+      setOpenGroups((prev) => ({ ...prev, [id]: true }));
+      return;
     }
-    setMastersOpen((prev) => !prev)
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
   const handleNavigate = (path) => {
@@ -157,76 +181,121 @@ export default function MainLayout({ children }) {
           </ListItem>
         ))}
 
-        <ListItem disablePadding sx={{ mb: 0.5, px: collapsed ? 1 : 2 }}>
-          <Tooltip title={collapsed ? 'Maestros' : ''} disableHoverListener={!collapsed} arrow placement="right">
-            <ListItemButton
-              selected={isMastersPath}
-              onClick={handleMastersToggle}
-              sx={{
-                borderRadius: 2,
-                color: 'white',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(37, 99, 235, 0.3)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(29, 78, 216, 0.35)',
-                  },
-                },
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: 'inherit', minWidth: collapsed ? 0 : 40 }}>
-                <MastersIcon />
-              </ListItemIcon>
-              {!collapsed && (
-                <>
-                  <ListItemText
-                    primary="Maestros"
-                    primaryTypographyProps={{ fontWeight: 500, fontSize: '0.95rem' }}
-                  />
-                  {mastersOpen ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-                </>
-              )}
-            </ListItemButton>
-          </Tooltip>
-        </ListItem>
-
-        <Collapse in={mastersOpen && !collapsed} timeout="auto" unmountOnExit>
-          <List disablePadding>
-            {mastersMenuItems.map((item) => (
-              <ListItem key={item.text} disablePadding sx={{ mb: 0.5, px: 2 }}>
-                <ListItemButton
-                  selected={location.pathname.startsWith(item.path)}
-                  onClick={() => handleNavigate(item.path)}
-                  sx={{
-                    borderRadius: 2,
-                    color: 'white',
-                    pl: 4,
-                    '&.Mui-selected': {
-                      backgroundColor: '#2563eb',
-                      '&:hover': {
-                        backgroundColor: '#1d4ed8',
+        {menuGroups.map((group) => {
+          const isActive = group.items.some((item) => location.pathname.startsWith(item.path));
+          const isOpen = !!openGroups[group.id];
+          return (
+            <React.Fragment key={group.id}>
+              <ListItem disablePadding sx={{ mb: 0.5, px: collapsed ? 1 : 2 }}>
+                <Tooltip title={collapsed ? group.text : ''} disableHoverListener={!collapsed} arrow placement="right">
+                  <ListItemButton
+                    selected={isActive}
+                    onClick={() => handleGroupToggle(group.id)}
+                    sx={{
+                      borderRadius: 2,
+                      color: 'white',
+                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(37, 99, 235, 0.3)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(29, 78, 216, 0.35)',
+                        },
                       },
-                    },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'inherit', minWidth: collapsed ? 0 : 40 }}>
+                      {group.icon}
+                    </ListItemIcon>
+                    {!collapsed && (
+                      <>
+                        <ListItemText
+                          primary={group.text}
+                          primaryTypographyProps={{ fontWeight: 500, fontSize: '0.95rem' }}
+                        />
+                        {isOpen ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+                      </>
+                    )}
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+
+              <Collapse in={isOpen && !collapsed} timeout="auto" unmountOnExit>
+                <List disablePadding>
+                  {group.items.map((item) => (
+                    <ListItem key={item.text} disablePadding sx={{ mb: 0.5, px: 2 }}>
+                      <ListItemButton
+                        selected={location.pathname.startsWith(item.path)}
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          borderRadius: 2,
+                          color: 'white',
+                          pl: 4,
+                          '&.Mui-selected': {
+                            backgroundColor: '#2563eb',
+                            '&:hover': {
+                              backgroundColor: '#1d4ed8',
+                            },
+                          },
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ color: 'inherit', minWidth: 32 }}>
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              </Collapse>
+            </React.Fragment>
+          );
+        })}
+
+        <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
+
+        {bottomMenuItems.map((item) => (
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5, px: collapsed ? 1 : 2 }}>
+            <Tooltip title={collapsed ? item.text : ''} disableHoverListener={!collapsed} arrow placement="right">
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => handleNavigate(item.path)}
+                sx={{
+                  borderRadius: 2,
+                  color: 'white',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  '&.Mui-selected': {
+                    backgroundColor: '#2563eb',
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      backgroundColor: '#1d4ed8',
                     },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: 'inherit', minWidth: 32 }}>
-                    {item.icon}
-                  </ListItemIcon>
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'inherit', minWidth: collapsed ? 0 : 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                {!collapsed && (
                   <ListItemText
                     primary={item.text}
-                    primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
+                    primaryTypographyProps={{ fontWeight: 500, fontSize: '0.95rem' }}
                   />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </Collapse>
+                )}
+              </ListItemButton>
+            </Tooltip>
+          </ListItem>
+        ))}
       </List>
       <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2 }}>
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />

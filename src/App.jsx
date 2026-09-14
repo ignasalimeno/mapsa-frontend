@@ -1,5 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
-import { Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import MainLayout from './components/MainLayout'
 import PrivateRoute from './components/PrivateRoute'
@@ -27,11 +26,20 @@ import StockValuation from './pages/StockValuation'
 import BulkPriceUpdate from './pages/BulkPriceUpdate'
 import InvoiceList from './pages/InvoiceList'
 import SalesList from './pages/SalesList'
+import SalesProductsList from './pages/SalesProductsList'
 import UtilityList from './pages/UtilityList'
 import PaymentsReceivedList from './pages/PaymentsReceivedList'
+import ReceiptList from './pages/ReceiptList'
+import ReceiptDetail from './pages/ReceiptDetail'
+import NoteList from './pages/NoteList'
 import TestConnection from './pages/TestConnection'
 import theme from './theme'
 import { AppUiProvider, ChannelProvider } from './context'
+
+function AccountRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/customers/${id}`} replace />
+}
 
 function App() {
   return (
@@ -55,7 +63,7 @@ function App() {
             <Route path="/work-orders/:id" element={<WorkOrderDetail />} />
             <Route path="/work-orders/:id/edit" element={<WorkOrderForm />} />
             <Route path="/account" element={<AccountList />} />
-            <Route path="/customers/:id/account" element={<AccountDetail />} />
+            <Route path="/customers/:id/account" element={<AccountRedirect />} />
             <Route path="/products" element={<ProductList />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/products/:id/stock" element={<ProductStock />} />
@@ -68,7 +76,12 @@ function App() {
             <Route path="/stock/valuation" element={<StockValuation />} />
             <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/sales" element={<SalesList />} />
+            <Route path="/sales/products" element={<SalesProductsList />} />
             <Route path="/payments/received" element={<PaymentsReceivedList />} />
+            <Route path="/receipts" element={<ReceiptList />} />
+            <Route path="/receipts/:id" element={<ReceiptDetail />} />
+            <Route path="/notes/debit" element={<NoteList noteType="DEBIT_NOTE" />} />
+            <Route path="/notes/credit" element={<NoteList noteType="CREDIT_NOTE" />} />
             <Route path="/utilities" element={<UtilityList />} />
                   <Route path="/test" element={<TestConnection />} />
                   </Routes>

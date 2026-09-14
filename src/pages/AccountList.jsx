@@ -86,8 +86,8 @@ function AccountList() {
         const balance = (accounts[row.id] || { balance: 0 }).balance || 0
         return (
           <Typography
+            sx={{ fontSize: 'inherit', fontWeight: 'bold' }}
             color={balance > 0 ? 'error.main' : balance < 0 ? 'success.main' : 'text.primary'}
-            fontWeight="bold"
           >
             {formatCurrency(balance)}
           </Typography>

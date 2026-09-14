@@ -81,20 +81,20 @@ function WorkOrderDetail() {
 
   const handleDeleteWorkOrder = async () => {
     const confirmed = await confirm({
-      title: 'Eliminar remito',
-      message: `Vas a eliminar el remito ${workOrder.external_id || '-'}. Esta accion no se puede deshacer.`,
-      confirmLabel: 'Eliminar',
+      title: 'Anular remito',
+      message: `Vas a anular el remito ${workOrder.external_id || '-'}. Se anularán también sus facturas vinculadas.`,
+      confirmLabel: 'Anular',
       confirmColor: 'error',
     })
     if (!confirmed) return
 
     try {
       await workOrderService.delete(id)
-      notifySuccess('Remito eliminado correctamente')
+      notifySuccess('Remito anulado correctamente')
       navigate('/work-orders')
     } catch (err) {
       console.error(err)
-      notifyError('Error al eliminar remito')
+      notifyError('Error al anular remito')
     }
   }
 
@@ -180,14 +180,16 @@ function WorkOrderDetail() {
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6">Información General</Typography>
             <Box display="flex" gap={1}>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleDeleteWorkOrder}
-              >
-                Borrar
-              </Button>
+              {workOrder.status !== 'CANCELLED' && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleDeleteWorkOrder}
+                >
+                  Anular
+                </Button>
+              )}
               <Button
                 variant="contained"
                 startIcon={<EditIcon />}

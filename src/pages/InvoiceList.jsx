@@ -192,9 +192,9 @@ function InvoiceList() {
 
   const handleDelete = async (invoice) => {
     const confirmed = await confirm({
-      title: 'Eliminar factura',
-      message: `Vas a eliminar la factura ${invoice.id_afip || invoice.number || '-'}. Esta accion no se puede deshacer.`,
-      confirmLabel: 'Eliminar',
+      title: 'Anular factura',
+      message: `Vas a anular la factura ${invoice.id_afip || invoice.number || '-'}. Sus pagos quedarán desasignados y los remitos volverán a estar abiertos.`,
+      confirmLabel: 'Anular',
       confirmColor: 'error',
     })
     if (!confirmed) return
@@ -202,10 +202,10 @@ function InvoiceList() {
     try {
       await invoiceService.delete(invoice.id)
       await loadInvoices()
-      notifySuccess('Factura eliminada correctamente')
+      notifySuccess('Factura anulada correctamente')
     } catch (err) {
-      setError('Error al eliminar factura')
-      notifyError('No se pudo eliminar la factura')
+      setError('Error al anular factura')
+      notifyError('No se pudo anular la factura')
       console.error(err)
     }
   }
@@ -264,11 +264,13 @@ function InvoiceList() {
       <Button variant="outlined" size="small" onClick={() => handleOpenPayments(invoice)}>
         Pagos
       </Button>
-      <TableActionIconButton
-        kind="delete"
-        onClick={() => handleDelete(invoice)}
-        ariaLabel={`Eliminar factura ${invoice.id_afip || invoice.id}`}
-      />
+      {invoice.status !== 'CANCELLED' && (
+        <TableActionIconButton
+          kind="delete"
+          onClick={() => handleDelete(invoice)}
+          ariaLabel={`Anular factura ${invoice.id_afip || invoice.id}`}
+        />
+      )}
     </Box>
   )
 

@@ -22,6 +22,7 @@ function CustomerList() {
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showDebtors, setShowDebtors] = useState(false)
+  const [maxDebt, setMaxDebt] = useState('')
   const navigate = useNavigate()
   const { channel } = useChannel()
 
@@ -63,31 +64,31 @@ function CustomerList() {
 
   const filteredCustomers = customers.filter(customer => {
     const search = searchTerm.toLowerCase()
-    const vehicles = (customer.vehicles || '').toLowerCase()
     const matchesSearch = (
       customer.name?.toLowerCase().includes(search) ||
       String(customer.customer_number || '').toLowerCase().includes(search) ||
-      customer.cuit?.toLowerCase().includes(search) ||
-      vehicles.includes(search)
+      (customer.id_afip || '').toLowerCase().includes(search) ||
+      (customer.cuit || '').toLowerCase().includes(search)
     )
     const isDebtor = !showDebtors || Number(customer.balance || 0) > 0
+    const balance = Number(customer.balance || 0)
+    const withinMaxDebt = !maxDebt || (balance > 0 && balance <= Number(maxDebt))
     return (
-      matchesSearch && isDebtor
+      matchesSearch && isDebtor && withinMaxDebt
     )
   })
 
   const columns = [
     { id: 'customer_number', label: 'N° Cliente', sortValue: (row) => Number(row.customer_number || 0) },
     { id: 'name', label: 'Nombre' },
-    { id: 'cuit', label: 'CUIT/CUIL' },
+    { id: 'id_afip', label: 'ID AFIP' },
     { id: 'province', label: 'Provincia' },
     { id: 'postal_code', label: 'CP' },
-    { id: 'vehicles', label: 'Vehículos' },
     { id: 'phone', label: 'Teléfono' },
     { id: 'email', label: 'Email' },
     {
       id: 'balance',
-      label: 'Cuenta Corriente',
+      label: 'Tot.Cte',
       align: 'right',
       sortValue: (row) => Number(row.balance || 0),
       render: (row) => {
@@ -144,7 +145,7 @@ function CustomerList() {
       <Box display="flex" gap={2} alignItems="center" flexWrap="wrap" mb={3}>
         <TextField
           fullWidth
-          placeholder="Buscar por nombre, n° cliente, CUIT o patente..."
+          placeholder="Buscar por nombre, n° cliente o ID AFIP..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -164,6 +165,15 @@ function CustomerList() {
             />
           }
           label="Solo deudores"
+        />
+        <TextField
+          type="number"
+          size="small"
+          label="Deuda máx $"
+          value={maxDebt}
+          onChange={(e) => setMaxDebt(e.target.value)}
+          placeholder="Ej: 50000"
+          sx={{ width: 160, backgroundColor: 'white' }}
         />
       </Box>
 

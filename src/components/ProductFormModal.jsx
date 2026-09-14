@@ -1,24 +1,35 @@
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
   TextField,
   Alert,
   Grid,
-  Typography,
   Box,
-  Paper,
   CircularProgress,
-  Stack
+  Stack,
+  Paper,
+  Divider,
+  Typography
 } from '@mui/material'
-import { Save as SaveIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  Category as CategoryIcon,
+  Info as InfoIcon,
+  AttachMoney as PricesIcon
+} from '@mui/icons-material'
 import { itemService, categoryService } from '../services/api'
-import { CategorySelect } from '../components'
+import { CategorySelect, StyledDialog } from '../components'
 
-const BORDER = '1px solid #d4d4d4'
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.85 }} />
+      <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: 1, color: 'text.secondary', lineHeight: 1 }}>
+        {label}
+      </Typography>
+    </Stack>
+  )
+}
 
 const initialProduct = {
   code: '',
@@ -28,21 +39,6 @@ const initialProduct = {
   sale_price: '0.00',
   iva_rate: 21.00,
   id_category: null
-}
-
-function Section({ label, children }) {
-  return (
-    <Paper sx={{ border: BORDER, borderRadius: 0 }}>
-      <Box sx={{ backgroundColor: '#f0f0f0', px: 2, py: 0.75, borderBottom: BORDER }}>
-        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#444' }}>
-          {label}
-        </Typography>
-      </Box>
-      <Box sx={{ p: 2 }}>
-        {children}
-      </Box>
-    </Paper>
-  )
 }
 
 function ProductFormModal({ open, onClose, onSaved, productId }) {
@@ -164,149 +160,136 @@ function ProductFormModal({ open, onClose, onSaved, productId }) {
   }
 
   return (
-    <Dialog
+    <StyledDialog
       open={open}
       onClose={handleClose}
+      title={isEdit ? 'Editar Producto' : 'Nuevo Producto'}
+      icon={<PricesIcon />}
       maxWidth="md"
-      fullWidth
-      disableEscapeKeyDown={saving}
-      PaperProps={{
-        sx: { borderRadius: 0, border: BORDER, boxShadow: 'none' }
-      }}
-    >
-      <Box component="form" noValidate onSubmit={handleSubmit}>
-        <DialogTitle sx={{ px: 3, py: 2, borderBottom: BORDER, backgroundColor: '#fafafa' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>
-            {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
-          </Typography>
-        </DialogTitle>
-
-        <DialogContent sx={{ px: 3, py: 2 }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={32} />
-            </Box>
-          ) : (
-            <>
-              {error && (
-                <Alert severity="error" sx={{ mb: 2, borderRadius: 0, border: BORDER }}>
-                  {error}
-                </Alert>
-              )}
-
-              <Section label="Categoría">
-                <CategorySelect
-                  categories={categories}
-                  value={selectedCategory}
-                  onChange={handleCategoryChange}
-                  label="Categoría"
-                />
-              </Section>
-
-              <Box sx={{ mt: 1.5 }}>
-                <Section label="Información General">
-                  <Stack spacing={2}>
-                    <TextField
-                      fullWidth
-                      label="Código"
-                      name="code"
-                      value={product.code}
-                      onChange={handleChange}
-                      placeholder="PROD-001"
-                      size="small"
-                      variant="outlined"
-                    />
-                    <TextField
-                      fullWidth
-                      label="Nombre"
-                      name="name"
-                      value={product.name}
-                      onChange={handleChange}
-                      required
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Section>
-              </Box>
-
-              <Box sx={{ mt: 1.5 }}>
-                <Section label="Precios">
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Costo"
-                        name="purchase_price"
-                        value={product.purchase_price}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        size="small"
-                        variant="outlined"
-                        inputProps={{ step: 0.01 }}
-                        InputProps={{
-                          startAdornment: <Box component="span" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>$</Box>
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Precio de Venta"
-                        name="sale_price"
-                        value={product.sale_price}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        required
-                        size="small"
-                        variant="outlined"
-                        inputProps={{ step: 0.01 }}
-                        InputProps={{
-                          startAdornment: <Box component="span" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>$</Box>
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="IVA"
-                        name="iva_rate"
-                        value={product.iva_rate}
-                        onChange={handleChange}
-                        size="small"
-                        variant="outlined"
-                        InputProps={{
-                          endAdornment: <Box component="span" sx={{ ml: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>%</Box>
-                        }}
-                      />
-                    </Grid>
-                  </Grid>
-                </Section>
-              </Box>
-            </>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, py: 1.5, borderTop: BORDER, backgroundColor: '#fafafa' }}>
-          <Button
-            onClick={handleClose}
-            disabled={saving}
-            sx={{ textTransform: 'none', fontWeight: 600 }}
-          >
+      actions={
+        <>
+          <Button onClick={handleClose} disabled={saving} sx={{ textTransform: 'none', fontWeight: 600 }}>
             Cancelar
           </Button>
           <Button
             type="submit"
             variant="contained"
+            form="product-form"
             startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             disabled={saving || loading}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </Button>
-        </DialogActions>
+        </>
+      }
+    >
+      <Box component="form" id="product-form" noValidate onSubmit={handleSubmit}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+          <Stack spacing={2.5}>
+            {error && (
+              <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>
+            )}
+
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+              <SectionHeader icon={CategoryIcon} label="Categoría" />
+              <Divider sx={{ mb: 2 }} />
+              <CategorySelect
+                categories={categories}
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                label="Categoría"
+              />
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+              <SectionHeader icon={InfoIcon} label="Información General" />
+              <Divider sx={{ mb: 2 }} />
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Código"
+                  name="code"
+                  value={product.code}
+                  onChange={handleChange}
+                  placeholder="PROD-001"
+                  size="small"
+                  variant="outlined"
+                />
+                <TextField
+                  fullWidth
+                  label="Nombre"
+                  name="name"
+                  value={product.name}
+                  onChange={handleChange}
+                  required
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, borderColor: 'divider' }}>
+              <SectionHeader icon={PricesIcon} label="Precios" />
+              <Divider sx={{ mb: 2 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Costo"
+                    name="purchase_price"
+                    value={product.purchase_price}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    size="small"
+                    variant="outlined"
+                    inputProps={{ step: 0.01 }}
+                    InputProps={{
+                      startAdornment: <Box component="span" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>$</Box>
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Precio de Venta"
+                    name="sale_price"
+                    value={product.sale_price}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    required
+                    size="small"
+                    variant="outlined"
+                    inputProps={{ step: 0.01 }}
+                    InputProps={{
+                      startAdornment: <Box component="span" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>$</Box>
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="IVA"
+                    name="iva_rate"
+                    value={product.iva_rate}
+                    onChange={handleChange}
+                    size="small"
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: <Box component="span" sx={{ ml: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>%</Box>
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Stack>
+        )}
       </Box>
-    </Dialog>
+    </StyledDialog>
   )
 }
 

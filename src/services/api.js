@@ -77,6 +77,7 @@ export const documentService = {
 export const accountService = {
   getCustomerAccount: (customerId) => api.get(`/account/customer/${customerId}`),
   createMovement: (customerId, data) => api.post(`/account/customer/${customerId}/movements`, data),
+  listNotes: (params) => api.get('/account/notes', { params }),
   listCustomerInvoices(customerId) {
     return api.get(`/customers/${customerId}/invoices`)
   },
@@ -116,6 +117,14 @@ export const paymentService = {
   exportReceivedCsv: (params) => api.get('/payments/received/export', { params, responseType: 'blob' }),
 }
 
+export const receiptService = {
+  nextNumber: () => api.get('/receipts/next-number'),
+  list: (params) => api.get('/receipts', { params }),
+  getById: (id) => api.get(`/receipts/${id}`),
+  create: (data) => api.post('/receipts', data),
+  void: (id) => api.delete(`/receipts/${id}`),
+}
+
 export const deliveryNoteService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/delivery-notes/from-work-order/${workOrderId}`, data),
 }
@@ -123,6 +132,7 @@ export const deliveryNoteService = {
 export const salesService = {
   list: (params) => api.get('/sales', { params }),
   exportCsv: (params) => api.get('/sales/export', { params, responseType: 'blob' }),
+  productsSummary: (params) => api.get('/sales/products-summary', { params }),
 }
 
 export const utilityService = {

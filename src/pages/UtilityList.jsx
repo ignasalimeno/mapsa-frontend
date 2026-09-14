@@ -76,15 +76,15 @@ function UtilityList() {
 
   const columns = [
     { id: 'number', label: 'Remito' },
-    { id: 'plate', label: 'Patente' },
+    { id: 'plate', label: 'Patente', mono: true },
     { id: 'open_date', label: 'Fecha', render: (row) => formatDate(row.open_date) },
     { id: 'customer_name', label: 'Cliente' },
-    { id: 'sale_total', label: 'Venta s/IVA', align: 'right', render: (row) => formatCurrency(row.sale_total) },
-    { id: 'iva_amount', label: 'IVA', align: 'right', render: (row) => formatCurrency(row.iva_amount) },
-    { id: 'sale_total_with_iva', label: 'Venta c/IVA', align: 'right', render: (row) => formatCurrency(row.sale_total_with_iva) },
-    { id: 'cost_total', label: 'Costo', align: 'right', render: (row) => formatCurrency(row.cost_total) },
-    { id: 'utility_total', label: 'Utilidad', align: 'right', render: (row) => formatCurrency(row.utility_total) },
-    { id: 'margin_percentage', label: 'Margen', align: 'right', render: (row) => `${Number(row.margin_percentage || 0).toFixed(2)}%` },
+    { id: 'sale_total', label: 'Venta s/IVA', align: 'right', mono: true, render: (row) => formatCurrency(row.sale_total) },
+    { id: 'iva_amount', label: 'IVA', align: 'right', mono: true, render: (row) => formatCurrency(row.iva_amount) },
+    { id: 'sale_total_with_iva', label: 'Venta c/IVA', align: 'right', mono: true, render: (row) => formatCurrency(row.sale_total_with_iva) },
+    { id: 'cost_total', label: 'Costo', align: 'right', mono: true, render: (row) => formatCurrency(row.cost_total) },
+    { id: 'utility_total', label: 'Utilidad', align: 'right', mono: true, render: (row) => formatCurrency(row.utility_total) },
+    { id: 'margin_percentage', label: 'Margen', align: 'right', mono: true, render: (row) => `${Number(row.margin_percentage || 0).toFixed(2)}%` },
   ]
 
   return (
