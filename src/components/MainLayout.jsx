@@ -29,6 +29,7 @@ import {
   Assessment as UtilityIcon,
   BarChart as ReportIcon,
   Inventory as InventoryIcon,
+  Public as PublicIcon,
   Category as CategoryIcon,
   Warehouse as WarehouseIcon,
   SwapHoriz as StockIcon,
@@ -60,6 +61,7 @@ const menuGroups = [
     icon: <ReportIcon />,
     items: [
       { text: 'Equipos Vendidos', icon: <InventoryIcon />, path: '/sales/products' },
+      { text: 'Ventas por Jurisdicción', icon: <PublicIcon />, path: '/sales/by-jurisdiction' },
       { text: 'Utilidades', icon: <UtilityIcon />, path: '/utilities' },
     ],
   },

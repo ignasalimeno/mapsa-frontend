@@ -49,7 +49,7 @@ import {
 } from "../services/api";
 import { LoadingOverlay, StyledDialog, TableActionIconButton, ExcelTable } from '../components';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { useNotify } from '../context';
+import { useConfirm, useNotify } from '../context';
 import { WORK_ORDER_STATUS } from '../constants/workOrderStatus';
 
 const PROVINCES = [
@@ -98,6 +98,7 @@ function SectionHeader({ icon: Icon, label }) {
 function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { error: notifyError, success: notifySuccess } = useNotify();
 
   const [loading, setLoading] = useState(true);
@@ -462,6 +463,22 @@ function CustomerDetail() {
     } catch (e) { notifyError(e?.response?.data?.error || 'No se pudo eliminar el pago'); }
   };
 
+  const handleVoidReceipt = async (receipt) => {
+    const confirmed = await confirm({
+      title: 'Anular recibo',
+      message: '¿Anular este recibo? Se revertirán los pagos sobre las facturas.',
+      confirmLabel: 'Anular',
+      confirmColor: 'error',
+    });
+    if (!confirmed) return;
+    try {
+      const response = await receiptService.void(receipt.id_receipt);
+      if (response.data?.error) { notifyError(response.data.error); return; }
+      notifySuccess('Recibo anulado');
+      await loadAllData();
+    } catch (e) { notifyError(e?.response?.data?.error || 'No se pudo anular el recibo'); }
+  };
+
   const openAttachments = async (invoice) => {
     try {
       setAttachmentsModalOpen(true);
@@ -674,6 +691,9 @@ function CustomerDetail() {
                 defaultOrder="desc"
                 maxHeight="none"
                 onRowClick={(row) => navigate(`/receipts/${row.id_receipt}`)}
+                actions={(row) => row.status !== 'CANCELLED' ? (
+                  <Button size="small" color="error" variant="outlined" onClick={(e) => { e.stopPropagation(); handleVoidReceipt(row); }}>Anular</Button>
+                ) : null}
                 emptyMessage="No hay recibos para este cliente"
               />
             </Box>

@@ -26,12 +26,26 @@ const statusMap = {
   NEW: { label: 'Pendiente', color: 'warning' },
   PARTIAL_PAID: { label: 'Parcial', color: 'info' },
   PAID: { label: 'Pagada', color: 'success' },
+  ACTIVE: { label: 'Activa', color: 'success' },
   CANCELLED: { label: 'Anulada', color: 'error' },
 }
 
 const typeMap = {
   A: 'A',
   B: 'B',
+}
+
+const documentTypeMap = {
+  INVOICE: { label: 'Factura', color: 'primary' },
+  CREDIT_NOTE: { label: 'Nota Crédito', color: 'success' },
+  DEBIT_NOTE: { label: 'Nota Débito', color: 'warning' },
+}
+
+const documentTypeFilterLabels = {
+  ALL: 'Todos los comprobantes',
+  INVOICE: 'Facturas',
+  CREDIT_NOTE: 'Notas de Crédito',
+  DEBIT_NOTE: 'Notas de Débito',
 }
 
 const invoiceStatusFilterLabels = {
@@ -48,17 +62,18 @@ const invoiceTypeFilterLabels = {
 
 const columns = [
   {
-    id: 'id_afip',
-    label: 'N° de Factura',
-    width: 130,
-    sortValue: (row) => row.id_afip || row.number || '',
-    render: (row) => row.id_afip || '-',
+    id: 'number',
+    label: 'N° de Comprobante',
+    width: 140,
+    mono: true,
+    sortValue: (row) => row.number || '',
+    render: (row) => row.number || '-',
   },
   {
-    id: 'invoice_date',
+    id: 'date',
     label: 'Fecha',
     width: 110,
-    render: (row) => formatDate(row.invoice_date),
+    render: (row) => formatDate(row.date),
   },
   {
     id: 'customer_name',
@@ -72,13 +87,25 @@ const columns = [
     id: 'remitos',
     label: 'Remito(s)',
     width: 140,
-    render: (row) => row.remitos || row.work_order_number || '-',
+    render: (row) => row.remitos || '-',
   },
   {
-    id: 'invoice_type',
+    id: 'document_type',
     label: 'Tipo',
-    width: 60,
-    render: (row) => typeMap[row.invoice_type] || 'B',
+    width: 120,
+    render: (row) => {
+      const label = row.document_type === 'INVOICE'
+        ? `Factura ${typeMap[row.invoice_type] || 'B'}`
+        : documentTypeMap[row.document_type]?.label
+      return (
+        <Chip
+          size="small"
+          label={label || row.document_type}
+          color={documentTypeMap[row.document_type]?.color || 'default'}
+          variant={row.document_type === 'INVOICE' ? 'outlined' : 'filled'}
+        />
+      )
+    },
   },
   {
     id: 'channel',
@@ -113,7 +140,7 @@ const columns = [
     width: 110,
     mono: true,
     sortValue: (row) => Number(row.paid_amount || 0),
-    render: (row) => formatCurrency(row.paid_amount),
+    render: (row) => (row.paid_amount == null ? '-' : formatCurrency(row.paid_amount)),
   },
   {
     id: 'balance',
@@ -122,7 +149,7 @@ const columns = [
     width: 110,
     mono: true,
     sortValue: (row) => Number(row.balance || 0),
-    render: (row) => formatCurrency(row.balance),
+    render: (row) => (row.balance == null ? '-' : formatCurrency(row.balance)),
   },
 ]
 
@@ -140,6 +167,7 @@ function InvoiceList() {
   const [editDate, setEditDate] = useState('')
   const [filters, setFilters] = useState({
     search: '',
+    document_type: 'ALL',
     status: '',
     invoice_type: '',
     date_from: '',
@@ -154,10 +182,10 @@ function InvoiceList() {
     try {
       setLoading(true)
       setError(null)
-      const response = await invoiceService.list({ ...filters, channel })
+      const response = await invoiceService.listDocuments({ ...filters, channel })
       setInvoices(response.data || [])
     } catch (err) {
-      setError('Error al cargar facturas')
+      setError('Error al cargar comprobantes')
       console.error(err)
     } finally {
       setLoading(false)
@@ -193,7 +221,7 @@ function InvoiceList() {
   const handleDelete = async (invoice) => {
     const confirmed = await confirm({
       title: 'Anular factura',
-      message: `Vas a anular la factura ${invoice.id_afip || invoice.number || '-'}. Sus pagos quedarán desasignados y los remitos volverán a estar abiertos.`,
+      message: `Vas a anular la factura ${invoice.number || '-'}. Sus pagos quedarán desasignados y los remitos volverán a estar abiertos.`,
       confirmLabel: 'Anular',
       confirmColor: 'error',
     })
@@ -223,7 +251,7 @@ function InvoiceList() {
 
   const handleOpenEdit = (invoice) => {
     setEditInvoice(invoice)
-    setEditDate(invoice.invoice_date || new Date().toISOString().split('T')[0])
+    setEditDate(invoice.date || new Date().toISOString().split('T')[0])
     setEditDialogOpen(true)
   }
 
@@ -254,35 +282,38 @@ function InvoiceList() {
     return optionsMap[value] || value
   }
 
-  const renderActions = (invoice) => (
-    <Box display="flex" gap={1} justifyContent="center">
-      <TableActionIconButton
-        kind="edit"
-        onClick={() => handleOpenEdit(invoice)}
-        ariaLabel={`Editar factura ${invoice.id_afip || invoice.id}`}
-      />
-      <Button variant="outlined" size="small" onClick={() => handleOpenPayments(invoice)}>
-        Pagos
-      </Button>
-      {invoice.status !== 'CANCELLED' && (
+  const renderActions = (invoice) => {
+    if (invoice.document_type !== 'INVOICE') return null
+    return (
+      <Box display="flex" gap={1} justifyContent="center">
         <TableActionIconButton
-          kind="delete"
-          onClick={() => handleDelete(invoice)}
-          ariaLabel={`Anular factura ${invoice.id_afip || invoice.id}`}
+          kind="edit"
+          onClick={() => handleOpenEdit(invoice)}
+          ariaLabel={`Editar factura ${invoice.number || invoice.id}`}
         />
-      )}
-    </Box>
-  )
+        <Button variant="outlined" size="small" onClick={() => handleOpenPayments(invoice)}>
+          Pagos
+        </Button>
+        {invoice.status !== 'CANCELLED' && (
+          <TableActionIconButton
+            kind="delete"
+            onClick={() => handleDelete(invoice)}
+            ariaLabel={`Anular factura ${invoice.number || invoice.id}`}
+          />
+        )}
+      </Box>
+    )
+  }
 
   return (
-    <PageLayout title="Facturas" subtitle="Listado de facturas con filtros y exportación CSV">
+    <PageLayout title="Facturas" subtitle="Facturas, notas de crédito y débito con filtros y exportación CSV">
       <LoadingOverlay open={loading} message="Cargando facturas..." />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
                 placeholder="Buscar por número, cliente, ID..."
@@ -296,6 +327,25 @@ function InvoiceList() {
                   ),
                 }}
               />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <TextField
+                select
+                fullWidth
+                label="Comprobante"
+                value={filters.document_type}
+                onChange={(e) => handleFilterChange('document_type', e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                SelectProps={{
+                  displayEmpty: true,
+                  renderValue: (value) => renderSelectValue(value, documentTypeFilterLabels, 'Todos los comprobantes'),
+                }}
+              >
+                <MenuItem value="ALL">Todos los comprobantes</MenuItem>
+                <MenuItem value="INVOICE">Facturas</MenuItem>
+                <MenuItem value="CREDIT_NOTE">Notas de Crédito</MenuItem>
+                <MenuItem value="DEBIT_NOTE">Notas de Débito</MenuItem>
+              </TextField>
             </Grid>
             <Grid item xs={12} md={2}>
               <TextField
@@ -321,7 +371,7 @@ function InvoiceList() {
               <TextField
                 select
                 fullWidth
-                label="Tipo"
+                label="Letra"
                 value={filters.invoice_type}
                 onChange={(e) => handleFilterChange('invoice_type', e.target.value)}
                 InputLabelProps={{ shrink: true }}
@@ -366,12 +416,12 @@ function InvoiceList() {
       <Card>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Facturas</Typography>
+            <Typography variant="h6">Comprobantes</Typography>
           </Box>
           <ExcelTable
             columns={columns}
             data={invoices}
-            defaultSort="invoice_date"
+            defaultSort="date"
             defaultOrder="desc"
             actions={renderActions}
           />
@@ -385,7 +435,7 @@ function InvoiceList() {
         fullWidth
       >
         <DialogTitle>
-          Formas de Pago - Factura {selectedInvoice?.id_afip || selectedInvoice?.id || '-'}
+          Formas de Pago - Factura {selectedInvoice?.number || selectedInvoice?.id || '-'}
         </DialogTitle>
         <DialogContent sx={{ pt: 1, pb: 2 }}>
           {selectedInvoice && (
@@ -403,7 +453,7 @@ function InvoiceList() {
         onClose={handleCloseEdit}
         maxWidth="xs"
         title="Editar Fecha"
-        subtitle={editInvoice ? `Factura ${editInvoice.id_afip || editInvoice.number || '-'}` : ''}
+        subtitle={editInvoice ? `Factura ${editInvoice.number || '-'}` : ''}
         actions={(
           <>
             <Button onClick={handleCloseEdit} variant="outlined">Cancelar</Button>

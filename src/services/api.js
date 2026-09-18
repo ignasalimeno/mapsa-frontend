@@ -97,6 +97,7 @@ export const invoiceService = {
   createFromWorkOrder: (workOrderId, data) => api.post(`/invoices/from-work-order/${workOrderId}`, data),
   addWorkOrderToInvoice: (invoiceId, workOrderId) => api.post(`/invoices/${invoiceId}/add-work-order/${workOrderId}`),
   list: (params) => api.get('/invoices', { params }),
+  listDocuments: (params) => api.get('/invoices/documents', { params }),
   exportCsv: (params) => api.get('/invoices/export', { params, responseType: 'blob' }),
   update: (invoiceId, data) => api.put(`/invoices/${invoiceId}`, data),
   delete: (invoiceId) => api.delete(`/invoices/${invoiceId}`),
@@ -132,7 +133,10 @@ export const deliveryNoteService = {
 export const salesService = {
   list: (params) => api.get('/sales', { params }),
   exportCsv: (params) => api.get('/sales/export', { params, responseType: 'blob' }),
+  byJurisdiction: (params) => api.get('/sales/by-jurisdiction', { params }),
+  exportByJurisdiction: (params) => api.get('/sales/export-by-jurisdiction', { params, responseType: 'blob' }),
   productsSummary: (params) => api.get('/sales/products-summary', { params }),
+  exportProductsSummary: (params) => api.get('/sales/products-summary/export', { params, responseType: 'blob' }),
 }
 
 export const utilityService = {

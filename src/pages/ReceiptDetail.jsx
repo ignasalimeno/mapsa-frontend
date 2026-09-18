@@ -20,7 +20,7 @@ import { Delete as DeleteIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
 import { receiptService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
-import { useNotify } from '../context'
+import { useConfirm, useNotify } from '../context'
 
 const methodLabels = {
   CASH: 'Efectivo',
@@ -43,6 +43,7 @@ const invoiceStatusMap = {
 function ReceiptDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const { success: notifySuccess, error: notifyError } = useNotify()
   const [receipt, setReceipt] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -65,7 +66,13 @@ function ReceiptDetail() {
   }
 
   const handleVoid = async () => {
-    if (!window.confirm('¿Anular este recibo? Se revertirán los pagos sobre las facturas.')) return
+    const confirmed = await confirm({
+      title: 'Anular recibo',
+      message: '¿Anular este recibo? Se revertirán los pagos sobre las facturas.',
+      confirmLabel: 'Anular',
+      confirmColor: 'error',
+    })
+    if (!confirmed) return
     try {
       const res = await receiptService.void(id)
       if (res.data?.error) {

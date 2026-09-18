@@ -8,7 +8,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Search as SearchIcon } from '@mui/icons-material'
+import { Search as SearchIcon, Download as DownloadIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { salesService } from '../services/api'
@@ -92,6 +92,28 @@ function SalesProductsList() {
     }
   }
 
+  const handleExport = async () => {
+    try {
+      const res = await salesService.exportProductsSummary({
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        include_voided: includeVoided ? 'true' : 'false',
+      })
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'equipos_vendidos.csv')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error exportando equipos vendidos:', err)
+      setError('Error al exportar. Intente nuevamente.')
+    }
+  }
+
   return (
     <PageLayout
       title="Equipos Vendidos"
@@ -130,6 +152,14 @@ function SalesProductsList() {
           disabled={loading}
         >
           Consultar
+        </Button>
+        <Button
+          startIcon={<DownloadIcon />}
+          variant="outlined"
+          onClick={handleExport}
+          disabled={loading}
+        >
+          Exportar CSV
         </Button>
       </Paper>
 

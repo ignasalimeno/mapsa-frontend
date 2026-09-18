@@ -140,6 +140,29 @@ function SalesList() {
     }
   }
 
+  const handleExportByJurisdiction = async () => {
+    try {
+      const response = await salesService.exportByJurisdiction({
+        date_from: filters.date_from,
+        date_to: filters.date_to,
+        include_voided: filters.include_voided,
+        channel,
+      })
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'ventas_por_jurisdiccion.csv')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('Error al exportar ventas por jurisdicción')
+      console.error(err)
+    }
+  }
+
   const renderSelectValue = (value, optionsMap, emptyLabel) => {
     if (!value) {
       return <Box component="span" sx={{ color: 'text.secondary' }}>{emptyLabel}</Box>
@@ -224,6 +247,7 @@ function SalesList() {
                 <Box display="flex" gap={1}>
                   <Button variant="contained" onClick={loadSales}>Aplicar filtros</Button>
                   <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExport}>Exportar CSV</Button>
+                  <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportByJurisdiction}>Exportar por Jurisdicción</Button>
                 </Box>
               </Box>
             </Grid>

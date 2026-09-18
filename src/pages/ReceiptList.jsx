@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   Checkbox,
   Chip,
   FormControlLabel,
+  Grid,
   Paper,
   TextField,
   Typography,
@@ -105,8 +108,42 @@ function ReceiptList() {
     }
   }
 
+  const activeRows = rows.filter((r) => r.status !== 'CANCELLED')
+  const voidedRows = rows.filter((r) => r.status === 'CANCELLED')
+  const totalActive = activeRows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0)
+  const totalVoided = voidedRows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0)
+
   return (
     <PageLayout title="Recibos" subtitle="Recibos de pago emitidos">
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="overline" color="text.secondary">Cantidad de recibos</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>{rows.length}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="overline" color="text.secondary">Subtotal (activos)</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }} color="success.main">{formatCurrency(totalActive)}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="overline" color="text.secondary">Anulados</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }} color="error.main">
+                {voidedRows.length} · {formatCurrency(totalVoided)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       <Paper sx={{ p: 2, mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
         <TextField
           type="date"
