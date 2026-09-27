@@ -22,13 +22,16 @@ import {
   IconButton,
   Chip,
   Stack,
+  Switch,
+  FormControlLabel,
+  FormHelperText,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
 } from '@mui/icons-material'
-import { invoicePaymentService } from '../services/api'
+import { invoicePaymentService, receiptService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { useNotify } from '../context'
 
@@ -67,6 +70,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
     method: 'CASH',
     amount: '',
     retention_type: null,
+    with_receipt: false,
     receipt_number: '',
     receipt_date: '',
     notes: '',
@@ -120,6 +124,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
         method: composeMethodValue(draftPayment.method, draftPayment.retention_type),
         amount: draftPayment.amount,
         retention_type: draftPayment.retention_type,
+        with_receipt: draftPayment.with_receipt ?? Boolean(draftPayment.receipt_number),
         receipt_number: draftPayment.receipt_number || '',
         receipt_date: draftPayment.receipt_date || '',
         notes: draftPayment.notes || '',
@@ -130,12 +135,51 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
         method: 'CASH',
         amount: '',
         retention_type: null,
+        with_receipt: false,
         receipt_number: '',
         receipt_date: '',
         notes: '',
       })
     }
     setOpenDialog(true)
+  }
+
+  const getSuggestedReceiptNumber = async () => {
+    let next = 0
+    try {
+      const res = await receiptService.nextNumber()
+      const parsed = parseInt(res.data?.receipt_number, 10)
+      if (Number.isFinite(parsed)) next = parsed
+    } catch (err) {
+      // sin conexión al próximo número: seguimos con lo local
+    }
+
+    const used = draftPayments
+      .filter((_, i) => i !== editingDraftIndex)
+      .map((p) => parseInt(p.receipt_number, 10))
+      .filter((n) => Number.isFinite(n))
+    const maxUsed = used.length ? Math.max(...used) : 0
+
+    return String(Math.max(next, maxUsed + 1))
+  }
+
+  const handleToggleWithReceipt = async (checked) => {
+    if (checked && !formData.receipt_number) {
+      const next = await getSuggestedReceiptNumber()
+      setFormData((prev) => ({
+        ...prev,
+        with_receipt: true,
+        receipt_number: next,
+        receipt_date: prev.receipt_date || new Date().toISOString().slice(0, 10),
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        with_receipt: checked,
+        receipt_number: checked ? prev.receipt_number : '',
+        receipt_date: checked ? prev.receipt_date : '',
+      }))
+    }
   }
 
   const handleCloseDialog = () => {
@@ -167,12 +211,29 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
       return
     }
 
+    if (formData.with_receipt && !formData.receipt_number?.trim()) {
+      notifyError('Ingresa el número de recibo o desactiva "Emitir recibo"')
+      return
+    }
+
+    if (formData.with_receipt) {
+      const trimmed = formData.receipt_number.trim()
+      const duplicated = draftPayments.some(
+        (p, i) => i !== editingDraftIndex && p.with_receipt && p.receipt_number === trimmed
+      )
+      if (duplicated) {
+        notifyError(`El número de recibo ${trimmed} ya está usado por otro pago pendiente`)
+        return
+      }
+    }
+
     const nextPayment = {
       method,
       amount,
       retention_type: method === 'RETENTION' ? retention_type : null,
-      receipt_number: formData.receipt_number?.trim() || '',
-      receipt_date: formData.receipt_date || '',
+      with_receipt: Boolean(formData.with_receipt),
+      receipt_number: formData.with_receipt ? (formData.receipt_number?.trim() || '') : '',
+      receipt_date: formData.with_receipt ? (formData.receipt_date || '') : '',
       notes: formData.notes || '',
     }
 
@@ -220,6 +281,7 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
             method: draft.method,
             amount: draft.amount,
             retention_type: draft.retention_type,
+            with_receipt: draft.with_receipt,
             receipt_number: draft.receipt_number,
             receipt_date: draft.receipt_date,
             notes: draft.notes,
@@ -365,9 +427,11 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                       {formatCurrency(method.amount)}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {method.receipt_number || '-'}
-                      </Typography>
+                      {method.receipt_number ? (
+                        <Chip size="small" color="primary" variant="outlined" label={`Con recibo ${method.receipt_number}`} />
+                      ) : (
+                        <Chip size="small" variant="outlined" label="Sin recibo" />
+                      )}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -435,9 +499,11 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
                       {formatCurrency(payment.amount)}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {payment.receipt_number || '-'}
-                      </Typography>
+                      {payment.with_receipt ? (
+                        <Chip size="small" color="info" variant="outlined" label={`Con recibo ${payment.receipt_number}`} />
+                      ) : (
+                        <Chip size="small" variant="outlined" label="Sin recibo" />
+                      )}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -507,22 +573,42 @@ export default function InvoicePaymentComposer({ invoiceId, invoiceTotal, onPaym
               ))}
             </TextField>
 
-            <TextField
-              label="N° de Recibo (opcional)"
-              value={formData.receipt_number}
-              onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
-              fullWidth
-              placeholder="Número de recibo impreso"
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(formData.with_receipt)}
+                  onChange={(e) => handleToggleWithReceipt(e.target.checked)}
+                />
+              }
+              label="Emitir recibo"
             />
+            <FormHelperText sx={{ mt: -1.5 }}>
+              {formData.with_receipt
+                ? 'Se creará un recibo con este número.'
+                : 'El pago se registrará SIN recibo.'}
+            </FormHelperText>
 
-            <TextField
-              type="date"
-              label="Fecha de Recibo (opcional)"
-              value={formData.receipt_date}
-              onChange={(e) => setFormData({ ...formData, receipt_date: e.target.value })}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
+            {formData.with_receipt && (
+              <>
+                <TextField
+                  label="N° de Recibo"
+                  value={formData.receipt_number}
+                  onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
+                  fullWidth
+                  required
+                  placeholder="Número de recibo impreso"
+                />
+
+                <TextField
+                  type="date"
+                  label="Fecha de Recibo"
+                  value={formData.receipt_date}
+                  onChange={(e) => setFormData({ ...formData, receipt_date: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </>
+            )}
 
             <TextField
               label="Monto"

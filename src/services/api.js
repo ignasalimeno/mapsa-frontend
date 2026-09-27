@@ -124,6 +124,7 @@ export const receiptService = {
   getById: (id) => api.get(`/receipts/${id}`),
   create: (data) => api.post('/receipts', data),
   void: (id) => api.delete(`/receipts/${id}`),
+  remove: (id) => api.delete(`/receipts/${id}/permanent`),
 }
 
 export const deliveryNoteService = {
@@ -188,6 +189,12 @@ export const invoicePaymentService = {
   updatePaymentMethod: (paymentId, data) => api.put(`/invoice-payments/${paymentId}`, data),
   deletePaymentMethod: (paymentId) => api.delete(`/invoice-payments/${paymentId}`),
   getPaymentSummary: (invoiceId) => api.get(`/invoices/${invoiceId}/payments/summary`),
+}
+
+// Reports
+export const reportService = {
+  listLibroIva: (params) => api.get('/reports/libro-iva', { params }),
+  exportLibroIva: (params) => api.get('/reports/libro-iva/export', { params, responseType: 'blob' }),
 }
 
 export default api

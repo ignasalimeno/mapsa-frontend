@@ -38,6 +38,7 @@ import {
   Person as PersonIcon,
   Home as HomeIcon,
   Description as NotesIcon,
+  DeleteForever as DeleteForeverIcon,
 } from "@mui/icons-material";
 import {
   customerService,
@@ -479,6 +480,22 @@ function CustomerDetail() {
     } catch (e) { notifyError(e?.response?.data?.error || 'No se pudo anular el recibo'); }
   };
 
+  const handleDeleteReceipt = async (receipt) => {
+    const confirmed = await confirm({
+      title: 'Eliminar recibo',
+      message: '¿Eliminar este recibo definitivamente? Se revertirán los pagos sobre las facturas y el número de recibo quedará libre para volver a usarse.',
+      confirmLabel: 'Eliminar',
+      confirmColor: 'error',
+    });
+    if (!confirmed) return;
+    try {
+      const response = await receiptService.remove(receipt.id_receipt);
+      if (response.data?.error) { notifyError(response.data.error); return; }
+      notifySuccess('Recibo eliminado');
+      await loadAllData();
+    } catch (e) { notifyError(e?.response?.data?.error || 'No se pudo eliminar el recibo'); }
+  };
+
   const openAttachments = async (invoice) => {
     try {
       setAttachmentsModalOpen(true);
@@ -692,7 +709,10 @@ function CustomerDetail() {
                 maxHeight="none"
                 onRowClick={(row) => navigate(`/receipts/${row.id_receipt}`)}
                 actions={(row) => row.status !== 'CANCELLED' ? (
-                  <Button size="small" color="error" variant="outlined" onClick={(e) => { e.stopPropagation(); handleVoidReceipt(row); }}>Anular</Button>
+                  <Box display="flex" gap={1} justifyContent="center">
+                    <Button size="small" color="error" variant="outlined" onClick={(e) => { e.stopPropagation(); handleVoidReceipt(row); }}>Anular</Button>
+                    <Button size="small" color="error" variant="contained" startIcon={<DeleteForeverIcon fontSize="small" />} onClick={(e) => { e.stopPropagation(); handleDeleteReceipt(row); }}>Eliminar</Button>
+                  </Box>
                 ) : null}
                 emptyMessage="No hay recibos para este cliente"
               />
@@ -856,6 +876,13 @@ function CustomerDetail() {
             : 'Nueva Nota de Débito'}
         </DialogTitle>
         <DialogContent sx={{ pt: 1.25 }}>
+          {(movementForm.type === 'PAYMENT' || movementForm.type === 'RECEIPT') && (
+            <Alert severity={movementForm.type === 'RECEIPT' ? 'info' : 'warning'} sx={{ mb: 1.5 }}>
+              {movementForm.type === 'RECEIPT'
+                ? 'Este movimiento emitirá un RECIBO con el número indicado.'
+                : 'Este movimiento se registrará SIN recibo.'}
+            </Alert>
+          )}
           <Grid container spacing={2} sx={{ mt: 0.25 }}>
             {(movementForm.type === 'DEBIT_NOTE' || movementForm.type === 'CREDIT_NOTE') ? (
               <>

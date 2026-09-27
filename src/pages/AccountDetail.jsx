@@ -691,6 +691,13 @@ function AccountDetail() {
             : 'Nueva Nota de Débito'}
         </DialogTitle>
         <DialogContent sx={{ pt: 1.25 }}>
+          {(movementForm.type === 'PAYMENT' || movementForm.type === 'RECEIPT') && (
+            <Alert severity={movementForm.type === 'RECEIPT' ? 'info' : 'warning'} sx={{ mb: 1.5 }}>
+              {movementForm.type === 'RECEIPT'
+                ? 'Este movimiento emitirá un RECIBO con el número indicado.'
+                : 'Este movimiento se registrará SIN recibo.'}
+            </Alert>
+          )}
           <Grid container spacing={2} sx={{ mt: 0.25 }}>
             {(movementForm.type === 'DEBIT_NOTE' || movementForm.type === 'CREDIT_NOTE') ? (
               <>

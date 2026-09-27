@@ -62,6 +62,7 @@ const menuGroups = [
     items: [
       { text: 'Equipos Vendidos', icon: <InventoryIcon />, path: '/sales/products' },
       { text: 'Ventas por Jurisdicción', icon: <PublicIcon />, path: '/sales/by-jurisdiction' },
+      { text: 'Libro IVA Ventas', icon: <InvoiceIcon />, path: '/reports/libro-iva' },
       { text: 'Utilidades', icon: <UtilityIcon />, path: '/utilities' },
     ],
   },

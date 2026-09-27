@@ -77,7 +77,8 @@ function UtilityList() {
   const columns = [
     { id: 'number', label: 'Remito' },
     { id: 'plate', label: 'Patente', mono: true },
-    { id: 'open_date', label: 'Fecha', render: (row) => formatDate(row.open_date) },
+    { id: 'invoice_date', label: 'Fecha Factura', render: (row) => formatDate(row.invoice_date) },
+    { id: 'open_date', label: 'Fecha Remito', render: (row) => formatDate(row.open_date) },
     { id: 'customer_name', label: 'Cliente' },
     { id: 'sale_total', label: 'Venta s/IVA', align: 'right', mono: true, render: (row) => formatCurrency(row.sale_total) },
     { id: 'iva_amount', label: 'IVA', align: 'right', mono: true, render: (row) => formatCurrency(row.iva_amount) },

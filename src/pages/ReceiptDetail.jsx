@@ -16,7 +16,7 @@ import {
   Paper,
   Typography,
 } from '@mui/material'
-import { Delete as DeleteIcon } from '@mui/icons-material'
+import { Delete as DeleteIcon, DeleteForever as DeleteForeverIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
 import { receiptService } from '../services/api'
 import { formatCurrency, formatDate } from '../utils/formatters'
@@ -86,6 +86,27 @@ function ReceiptDetail() {
     }
   }
 
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      title: 'Eliminar recibo',
+      message: '¿Eliminar este recibo definitivamente? Se revertirán los pagos sobre las facturas y el número de recibo quedará libre para volver a usarse.',
+      confirmLabel: 'Eliminar',
+      confirmColor: 'error',
+    })
+    if (!confirmed) return
+    try {
+      const res = await receiptService.remove(id)
+      if (res.data?.error) {
+        notifyError(res.data.error)
+        return
+      }
+      notifySuccess('Recibo eliminado')
+      navigate('/receipts')
+    } catch (e) {
+      notifyError(e?.response?.data?.error || 'No se pudo eliminar el recibo')
+    }
+  }
+
   if (!receipt && !loading) {
     return (
       <PageLayout title="Recibo" onBack={() => navigate('/receipts')}>
@@ -103,9 +124,14 @@ function ReceiptDetail() {
       onBack={() => navigate('/receipts')}
       actions={
         receipt && !isCancelled ? (
-          <Button color="error" variant="outlined" startIcon={<DeleteIcon />} onClick={handleVoid}>
-            Anular Recibo
-          </Button>
+          <>
+            <Button color="error" variant="outlined" startIcon={<DeleteIcon />} onClick={handleVoid}>
+              Anular Recibo
+            </Button>
+            <Button color="error" variant="contained" startIcon={<DeleteForeverIcon />} onClick={handleDelete}>
+              Eliminar Recibo
+            </Button>
+          </>
         ) : null
       }
     >

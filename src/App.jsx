@@ -28,6 +28,7 @@ import InvoiceList from './pages/InvoiceList'
 import SalesList from './pages/SalesList'
 import SalesProductsList from './pages/SalesProductsList'
 import SalesByJurisdiction from './pages/SalesByJurisdiction'
+import LibroIvaVentas from './pages/LibroIvaVentas'
 import UtilityList from './pages/UtilityList'
 import PaymentsReceivedList from './pages/PaymentsReceivedList'
 import ReceiptList from './pages/ReceiptList'
@@ -79,6 +80,7 @@ function App() {
             <Route path="/sales" element={<SalesList />} />
             <Route path="/sales/products" element={<SalesProductsList />} />
             <Route path="/sales/by-jurisdiction" element={<SalesByJurisdiction />} />
+            <Route path="/reports/libro-iva" element={<LibroIvaVentas />} />
             <Route path="/payments/received" element={<PaymentsReceivedList />} />
             <Route path="/receipts" element={<ReceiptList />} />
             <Route path="/receipts/:id" element={<ReceiptDetail />} />
