@@ -1,4 +1,35 @@
 /**
+ * Convierte un Date a string ISO YYYY-MM-DD usando hora local (sin desfase).
+ */
+const toIsoDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+/**
+ * Fecha de hoy en formato ISO YYYY-MM-DD (hora local).
+ */
+export const todayIso = () => toIsoDate(new Date());
+
+/**
+ * Primer día del mes actual en formato ISO YYYY-MM-DD.
+ */
+export const firstDayOfMonthIso = () => {
+  const now = new Date();
+  return toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+};
+
+/**
+ * Rango por defecto para filtros de fecha: desde el 1° del mes hasta hoy.
+ */
+export const getDefaultDateRange = () => ({
+  date_from: firstDayOfMonthIso(),
+  date_to: todayIso(),
+});
+
+/**
  * Formatea un número como moneda argentina: $1.234,56
  * @param {number} value - El valor numérico a formatear
  * @param {boolean} includeDecimals - Si incluir decimales (default: true - CON DECIMALES)

@@ -18,7 +18,7 @@ import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-mater
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { salesService } from '../services/api'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, getDefaultDateRange } from '../utils/formatters'
 import { useChannel } from '../context'
 
 const statusMap = {
@@ -95,8 +95,7 @@ function SalesList() {
   const [filters, setFilters] = useState({
     search: '',
     sale_type: '',
-    date_from: '',
-    date_to: '',
+    ...getDefaultDateRange(),
     include_voided: false,
   })
 

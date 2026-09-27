@@ -14,7 +14,7 @@ import { Search as SearchIcon, Download as DownloadIcon } from '@mui/icons-mater
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { salesService } from '../services/api'
-import { formatCurrency } from '../utils/formatters'
+import { formatCurrency, firstDayOfMonthIso, todayIso } from '../utils/formatters'
 import { useChannel } from '../context'
 
 const columns = [
@@ -51,8 +51,8 @@ const columns = [
 
 function SalesByJurisdiction() {
   const { channel } = useChannel()
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(firstDayOfMonthIso)
+  const [dateTo, setDateTo] = useState(todayIso)
   const [includeVoided, setIncludeVoided] = useState(false)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)

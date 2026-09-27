@@ -13,7 +13,7 @@ import { Download as DownloadIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { utilityService } from '../services/api'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, getDefaultDateRange } from '../utils/formatters'
 import { useChannel } from '../context'
 
 function UtilityList() {
@@ -21,10 +21,7 @@ function UtilityList() {
   const [error, setError] = useState(null)
   const [data, setData] = useState({ totals: {}, items: [] })
   const { channel } = useChannel()
-  const [filters, setFilters] = useState({
-    date_from: '',
-    date_to: '',
-  })
+  const [filters, setFilters] = useState(getDefaultDateRange)
 
   useEffect(() => {
     loadUtilities()

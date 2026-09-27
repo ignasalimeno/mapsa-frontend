@@ -17,7 +17,7 @@ import { Search as SearchIcon, Refresh as RefreshIcon } from '@mui/icons-materia
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { receiptService } from '../services/api'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, getDefaultDateRange } from '../utils/formatters'
 import { useChannel } from '../context'
 
 const methodLabels = {
@@ -79,8 +79,7 @@ function ReceiptList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filters, setFilters] = useState({
-    date_from: '',
-    date_to: '',
+    ...getDefaultDateRange(),
     search: '',
     include_voided: false,
   })

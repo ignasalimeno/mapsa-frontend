@@ -12,7 +12,7 @@ import { Search as SearchIcon, Download as DownloadIcon } from '@mui/icons-mater
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { reportService } from '../services/api'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, firstDayOfMonthIso, todayIso } from '../utils/formatters'
 import { useChannel } from '../context'
 
 const columns = [
@@ -86,8 +86,8 @@ const columns = [
 
 function LibroIvaVentas() {
   const { channel } = useChannel()
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(firstDayOfMonthIso)
+  const [dateTo, setDateTo] = useState(todayIso)
   const [rows, setRows] = useState([])
   const [totals, setTotals] = useState({ neto: 0, iva: 0, total: 0 })
   const [loading, setLoading] = useState(false)

@@ -14,7 +14,7 @@ import { Search as SearchIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { accountService } from '../services/api'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, getDefaultDateRange } from '../utils/formatters'
 import { useChannel } from '../context'
 
 const buildColumns = (isDebit) => [
@@ -55,8 +55,7 @@ function NoteList({ noteType = 'DEBIT_NOTE' }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filters, setFilters] = useState({
-    date_from: '',
-    date_to: '',
+    ...getDefaultDateRange(),
     search: '',
     include_voided: false,
   })

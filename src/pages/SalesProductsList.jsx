@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -12,7 +12,7 @@ import { Search as SearchIcon, Download as DownloadIcon } from '@mui/icons-mater
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
 import { salesService } from '../services/api'
-import { formatCurrency } from '../utils/formatters'
+import { formatCurrency, firstDayOfMonthIso, todayIso } from '../utils/formatters'
 
 const columns = [
   {
@@ -65,8 +65,8 @@ const columns = [
 ]
 
 function SalesProductsList() {
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(firstDayOfMonthIso)
+  const [dateTo, setDateTo] = useState(todayIso)
   const [includeVoided, setIncludeVoided] = useState(false)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
@@ -113,6 +113,10 @@ function SalesProductsList() {
       setError('Error al exportar. Intente nuevamente.')
     }
   }
+
+  useEffect(() => {
+    load()
+  }, [])
 
   return (
     <PageLayout

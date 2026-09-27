@@ -26,7 +26,7 @@ import {
 import { Add as AddIcon } from '@mui/icons-material';
 import { PageLayout } from '../components';
 import { itemService } from '../services/api';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, firstDayOfMonthIso, todayIso } from '../utils/formatters';
 
 // Avoid timezone shifts: format YYYY-MM-DD as DD/MM/YYYY without Date()
 const formatDateDisplay = (dateStr) => {
@@ -41,8 +41,8 @@ function ItemAnalysis() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(firstDayOfMonthIso);
+  const [endDate, setEndDate] = useState(todayIso);
   const [usage, setUsage] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

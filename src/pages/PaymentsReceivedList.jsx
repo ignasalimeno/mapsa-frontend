@@ -17,7 +17,7 @@ import {
 import { Download as DownloadIcon, Search as SearchIcon } from '@mui/icons-material'
 import { LoadingOverlay, PageLayout } from '../components'
 import ExcelTable from '../components/ExcelTable'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, getDefaultDateRange } from '../utils/formatters'
 import { paymentService } from '../services/api'
 import { useChannel } from '../context'
 
@@ -68,8 +68,7 @@ function PaymentsReceivedList() {
     search: '',
     province: '',
     payment_type: '',
-    date_from: '',
-    date_to: '',
+    ...getDefaultDateRange(),
     include_voided: false,
   })
 

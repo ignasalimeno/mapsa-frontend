@@ -19,7 +19,7 @@ import { Download as DownloadIcon, Edit as EditIcon, Search as SearchIcon } from
 import { invoiceService } from '../services/api'
 import { InvoicePaymentComposer, LoadingOverlay, PageLayout, StyledDialog, TableActionIconButton } from '../components'
 import ExcelTable from '../components/ExcelTable'
-import { formatCurrency, formatDate } from '../utils/formatters'
+import { formatCurrency, formatDate, getDefaultDateRange } from '../utils/formatters'
 import { useChannel, useConfirm, useNotify } from '../context'
 
 const statusMap = {
@@ -170,8 +170,7 @@ function InvoiceList() {
     document_type: 'ALL',
     status: '',
     invoice_type: '',
-    date_from: '',
-    date_to: '',
+    ...getDefaultDateRange(),
   })
 
   useEffect(() => {
